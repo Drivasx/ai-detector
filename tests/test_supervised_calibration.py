@@ -111,6 +111,21 @@ def test_calibrate_with_ai_folder_fits_parameters_and_reports_detection(tmp_path
     assert result.ai_detection_rate == pytest.approx(1.0)
 
 
+def test_ai_folder_without_readable_texts_is_rejected_not_ignored(tmp_path):
+    from ai_detector.calibration import CalibrationError
+
+    write(tmp_path / "human", "a.txt", [(150, 3.7), (110, 3.5)])
+    (tmp_path / "ai").mkdir()
+
+    with pytest.raises(CalibrationError, match="No usable AI texts"):
+        calibrate(
+            discover_texts(tmp_path / "human"),
+            FakeAnalyzingPipeline(),
+            ReaderAgent(),
+            ai_paths=discover_texts(tmp_path / "ai"),
+        )
+
+
 def test_supervised_settings_round_trip_and_resolve(tmp_path):
     write(tmp_path / "human", "a.txt", [(150, 3.7), (110, 3.5)])
     write(tmp_path / "ai", "x.txt", [(20, 2.5), (35, 2.7)])

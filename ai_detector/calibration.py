@@ -139,7 +139,8 @@ def calibrate(
     referencias y los pesos del voto, y se informa qué parte de la IA se detecta.
     """
     skipped: list[tuple[str, str]] = []
-    if not ai_paths:
+    # Solo `None` significa "sin carpeta de IA": una lista vacía se rechaza más abajo.
+    if ai_paths is None:
         documents = _read_all(paths, reader, pipeline.evaluate_text, skipped)
         if not documents:
             raise CalibrationError("No usable human texts were found to calibrate with.")

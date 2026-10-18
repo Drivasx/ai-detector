@@ -21,7 +21,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from ai_detector import config
 from ai_detector.config import ModelSpec
-from ai_detector.models import ModelNotAvailableError, local_model_path
+from ai_detector.models import local_model_path
 
 
 def binoculars_from_logits(
@@ -66,8 +66,10 @@ class BinocularsScorer:
             return None
         try:
             tokenizer, observer, performer = self._load()
-        except ModelNotAvailableError as exc:
-            # Es una señal más del voto: sin sus modelos el análisis sigue con las demás.
+        except Exception as exc:  # noqa: BLE001
+            # Es una señal más del voto: si sus modelos faltan o están dañados
+            # (ModelNotAvailableError, OSError, checkpoint corrupto...), el análisis
+            # sigue con las demás.
             self._unavailable = True
             warnings.warn(f"Binoculars is disabled: {exc}", stacklevel=2)
             return None
@@ -75,6 +77,8 @@ class BinocularsScorer:
         ids = tokenizer(text, return_tensors="pt", truncation=True, max_length=max_tokens).input_ids
         if tokenizer.bos_token_id is not None:
             ids = torch.cat([torch.tensor([[tokenizer.bos_token_id]]), ids], dim=1)
+        if ids.shape[1] < 2:
+            return None  # Sin al menos dos tokens no hay nada que predecir: no se ejecutan los modelos.
         with torch.inference_mode():
             observer_logits = observer(ids).logits
             performer_logits = performer(ids).logits

@@ -90,3 +90,26 @@ def test_scorer_without_its_models_warns_once_and_does_not_vote(monkeypatch):
         assert scorer.score("un texto cualquiera") is None
     assert scorer.score("otro texto") is None
     assert len(calls) == 1  # no lo reintenta en cada bloque
+
+
+def test_scorer_does_not_run_the_models_on_text_without_tokens():
+    scorer = BinocularsScorer()
+    observer, performer = _FakeCausalModel(), _FakeCausalModel()
+    scorer._tokenizer, scorer._observer, scorer._performer = _FakeTokenizer(), observer, performer
+
+    assert scorer.score("") is None
+    assert observer.seen is None and performer.seen is None
+
+
+def test_scorer_with_a_corrupt_checkpoint_warns_and_does_not_vote(monkeypatch):
+    from ai_detector.analysis import binoculars
+
+    def corrupt(*args, **kwargs):
+        raise OSError("Unable to load weights from checkpoint file")
+
+    monkeypatch.setattr(binoculars, "local_model_path", lambda spec: spec.repo_id)
+    monkeypatch.setattr(binoculars.AutoTokenizer, "from_pretrained", corrupt)
+    scorer = BinocularsScorer()
+
+    with pytest.warns(UserWarning, match="Binoculars is disabled.*Unable to load weights"):
+        assert scorer.score("un texto cualquiera") is None

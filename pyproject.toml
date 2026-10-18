@@ -1,0 +1,9 @@
+[project]
+name = "ai-detector"
+version = "0.1.0"
+description = "Offline, CPU-only AI-text detector for Spanish documents."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

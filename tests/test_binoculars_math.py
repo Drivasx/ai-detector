@@ -71,3 +71,22 @@ def test_scorer_feeds_both_models_the_same_truncated_tokens():
     assert torch.equal(observer.seen, performer.seen)
     # Logits iguales y uniformes: perplejidad y perplejidad cruzada coinciden.
     assert score == pytest.approx(1.0)
+
+
+def test_scorer_without_its_models_warns_once_and_does_not_vote(monkeypatch):
+    from ai_detector.analysis import binoculars
+    from ai_detector.models import ModelNotAvailableError
+
+    calls = []
+
+    def missing(spec):
+        calls.append(spec)
+        raise ModelNotAvailableError(f"Model '{spec.repo_id}' is not in the local cache.")
+
+    monkeypatch.setattr(binoculars, "local_model_path", missing)
+    scorer = BinocularsScorer()
+
+    with pytest.warns(UserWarning, match="Binoculars is disabled.*not in the local cache"):
+        assert scorer.score("un texto cualquiera") is None
+    assert scorer.score("otro texto") is None
+    assert len(calls) == 1  # no lo reintenta en cada bloque

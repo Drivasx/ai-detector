@@ -14,12 +14,14 @@ implementación de referencia de los autores (github.com/ahans30/Binoculars).
 
 from __future__ import annotations
 
+import warnings
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from ai_detector import config
 from ai_detector.config import ModelSpec
-from ai_detector.models import local_model_path
+from ai_detector.models import ModelNotAvailableError, local_model_path
 
 
 def binoculars_from_logits(
@@ -56,9 +58,19 @@ class BinocularsScorer:
         self._tokenizer = None
         self._observer = None
         self._performer = None
+        self._unavailable = False
 
     def score(self, text: str) -> float | None:
-        tokenizer, observer, performer = self._load()
+        """Puntuación del bloque; None si no hay tokens o faltan los modelos (entonces no vota)."""
+        if self._unavailable:
+            return None
+        try:
+            tokenizer, observer, performer = self._load()
+        except ModelNotAvailableError as exc:
+            # Es una señal más del voto: sin sus modelos el análisis sigue con las demás.
+            self._unavailable = True
+            warnings.warn(f"Binoculars is disabled: {exc}", stacklevel=2)
+            return None
         max_tokens = self._max_tokens - (tokenizer.bos_token_id is not None)
         ids = tokenizer(text, return_tensors="pt", truncation=True, max_length=max_tokens).input_ids
         if tokenizer.bos_token_id is not None:

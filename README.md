@@ -33,7 +33,7 @@ After the download every analysis runs offline: importing `ai_detector` sets
 | Component | Model | Notes |
 |-----------|-------|-------|
 | Perplexity | `DeepESP/gpt2-spanish` | Causal GPT-2 small in Spanish, run in float32 |
-| Binoculars | `Qwen/Qwen2.5-0.5B` + `Qwen/Qwen2.5-0.5B-Instruct` | [Binoculars](https://arxiv.org/abs/2401.12070) score: perplexity divided by cross-perplexity between the base and instruct models; ~4 GB of RAM, a few seconds per paragraph on CPU |
+| Binoculars | `Qwen/Qwen2.5-0.5B` + `Qwen/Qwen2.5-0.5B-Instruct` | [Binoculars](https://arxiv.org/abs/2401.12070) score: perplexity divided by cross-perplexity between the base and instruct models; ~4 GB of RAM, a few seconds per paragraph on CPU. If these models are missing, a warning is printed and the other signals vote without it |
 | Classifier | `pandrei7/autextification-upb-mtl` | AuTexTification 2023 (es/en); architecture re-implemented locally, no remote code |
 
 ## Run

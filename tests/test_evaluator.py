@@ -136,3 +136,24 @@ def test_zero_weight_components_do_not_vote_and_no_evidence_is_neutral():
 
     assert evaluation.components == ()
     assert evaluation.ai_probability == pytest.approx(0.5)
+
+
+# --- Valores por defecto (diagnóstico en odd/tasks/detection-quality.md) ---
+
+
+def test_default_references_put_moderate_perplexity_in_the_ai_half():
+    # Textos IA de ~100 palabras midieron perplejidad 17-69 y burstiness 2,6-3,1.
+    (evaluation,) = EvaluatorAgent().evaluate([analysis(perplexity=50.0, burstiness=3.0)])
+
+    assert components(evaluation)["perplexity"] > 0.5
+
+
+def test_default_references_keep_typical_human_perplexity_low():
+    # Párrafos humanos: perplejidad mediana ~144, burstiness mediana ~3,6.
+    (evaluation,) = EvaluatorAgent().evaluate([analysis(perplexity=150.0, burstiness=3.7)])
+
+    assert components(evaluation)["perplexity"] < 0.2
+
+
+def test_near_constant_classifier_has_the_smallest_default_weight():
+    assert config.VOTING_WEIGHTS["classifier"] == min(config.VOTING_WEIGHTS.values()) <= 0.10

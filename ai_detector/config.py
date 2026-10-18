@@ -83,22 +83,23 @@ ALL_MODELS = (PERPLEXITY_MODEL, CLASSIFIER_MODEL, CLASSIFIER_ENCODER_CONFIG)
 
 # --- Evaluación (votación ponderada) -----------------------------------------
 
-# Peso de cada componente en el voto. El clasificador pesa menos porque es la
-# señal más débil en español (macro F1 de 65 en AuTexTification y probabilidades
-# casi idénticas para texto humano y de IA en las pruebas). La perplejidad y los
-# rasgos lingüísticos separaron con claridad los textos de prueba.
+# Peso de cada componente en el voto. La perplejidad es la señal que mejor separa
+# texto humano de texto de IA; el clasificador apenas aporta (devuelve ~0,999 tanto
+# para texto humano como de IA en español), así que pesa poco. Ver el diagnóstico
+# en odd/tasks/detection-quality.md. scripts/calibrate.py --ai-folder los ajusta.
 VOTING_WEIGHTS = {
-    "perplexity": 0.40,
-    "classifier": 0.25,
-    "linguistic": 0.35,
+    "perplexity": 0.60,
+    "classifier": 0.10,
+    "linguistic": 0.30,
 }
 
 # Referencias de la perplejidad de DeepESP/gpt2-spanish: (valor_humano, valor_ia).
-# La perplejidad se compara en escala logarítmica. Valores heurísticos iniciales
-# (texto humano de prueba ~42, texto de IA ~17); la calibración los ajusta.
+# La perplejidad se compara en escala logarítmica. Medidas reales: párrafos humanos
+# con mediana ~144 (p25 ~95) y textos de IA de 17 a 69; burstiness humana ~3,6 frente
+# a 2,6-3,1 en IA. scripts/calibrate.py --ai-folder las ajusta a los textos del usuario.
 PERPLEXITY_REFERENCES = {
-    "perplexity": (60.0, 15.0),
-    "burstiness": (3.2, 2.2),
+    "perplexity": (120.0, 25.0),
+    "burstiness": (3.6, 2.6),
     # Parte de la puntuación de perplejidad que aporta la burstiness.
     "burstiness_weight": 0.3,
 }

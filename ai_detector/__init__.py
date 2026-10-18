@@ -8,3 +8,5 @@ import os
 # explícita, para la descarga inicial.
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+# Gradio envía telemetría de uso por defecto; se desactiva antes de importarlo.
+os.environ.setdefault("GRADIO_ANALYTICS_ENABLED", "False")

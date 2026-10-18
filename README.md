@@ -35,6 +35,21 @@ After the download every analysis runs offline: importing `ai_detector` sets
 | Perplexity | `DeepESP/gpt2-spanish` | Causal GPT-2 small in Spanish, run in float32 |
 | Classifier | `pandrei7/autextification-upb-mtl` | AuTexTification 2023 (es/en); architecture re-implemented locally, no remote code |
 
+## Run
+
+```bash
+python -m ai_detector.ui.app            # http://127.0.0.1:7860 (localhost only)
+python -m ai_detector.ui.app --port 8000
+```
+
+Upload a `.txt`, `.pdf` or `.docx` file or paste text. The report shows the
+verdict, the AI probability and the most suspicious paragraphs; below it, every
+paragraph is coloured by AI likelihood.
+
+The UI never leaves the machine: it listens on `127.0.0.1` only, never creates a
+public share link, has Gradio telemetry disabled, uses system fonts (no web
+fonts) and renders the report with document text escaped and LaTeX disabled.
+
 ## Tests
 
 ```bash
@@ -49,4 +64,5 @@ pytest
 - [x] Analyzer Agent
 - [x] Evaluator Agent
 - [x] Reporter Agent
-- [ ] UI, calibration
+- [x] Gradio UI
+- [ ] Calibration script

@@ -17,4 +17,4 @@ sentencepiece>=0.2
 numpy>=2.1
 
 # Local UI
-gradio>=5.0
+gradio>=6.0

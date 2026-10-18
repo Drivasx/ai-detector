@@ -28,6 +28,9 @@ from ai_detector.agents.evaluator import ChunkEvaluation
 # Distancias al umbral a partir de las cuales la confianza pasa a media y a alta.
 _CONFIDENCE_MARGINS = ((0.25, "high"), (0.10, "medium"))
 _EXCERPT_CHARS = 280
+# Decimales al comparar márgenes: absorbe el error de coma flotante (~1e-16) sin
+# mover ningún límite de forma apreciable.
+_MARGIN_DECIMALS = 9
 
 # Caracteres con significado en Markdown dentro de una línea. El texto del
 # documento se escapa antes de mostrarlo: así no puede inyectar enlaces, imágenes
@@ -121,7 +124,7 @@ class ReporterAgent:
 
     def _confidence(self, ai_probability: float) -> str:
         # Redondeo: 0,6 - 0,5 da 0,0999... en coma flotante y caería en "low".
-        margin = round(abs(ai_probability - self.threshold), 9)
+        margin = round(abs(ai_probability - self.threshold), _MARGIN_DECIMALS)
         for minimum, label in _CONFIDENCE_MARGINS:
             if margin >= minimum:
                 return label

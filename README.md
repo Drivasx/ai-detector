@@ -47,4 +47,5 @@ pytest
 - [x] Reader Agent
 - [x] Segmenter Agent
 - [x] Analyzer Agent
-- [ ] Evaluator, Reporter, UI, calibration
+- [x] Evaluator Agent
+- [ ] Reporter, UI, calibration

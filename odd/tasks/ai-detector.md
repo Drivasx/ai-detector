@@ -29,7 +29,7 @@ Objective: local, CPU-only AI-text detector built as an agent pipeline with a Gr
 | T3 | S4 | inline | done | d19bbcd; RED (ImportError) -> GREEN 39 passed |
 | T4 | S5, S1, S8 | inline | done | 8bb39de (linguistic), 26a8e2a (model cache/offline), 68cf28e (perplexity, classifier, agent); 67 passed incl. 7 integration |
 | T5 | S6 | inline | done | 030cf48 (review carry-overs), c97d627 (evaluator); 89 passed |
-| T6 | S7 | inline | done | REPORTER_COMMIT; 108 passed |
+| T6 | S7 | inline | done | c319e8e; 107 passed |
 | T7 | S9 | inline | pending — waits for user OK (S12) | |
 | T8 | S10 | inline | pending | |
 | T9 | S8 | inline | core done in 26a8e2a (download script, offline default); UI/first-run wiring pending | |

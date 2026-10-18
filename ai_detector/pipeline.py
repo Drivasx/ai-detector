@@ -35,7 +35,7 @@ class DetectionPipeline:
         self._segmenter = segmenter or SegmenterAgent()
         self._analyzer = analyzer
         self._evaluator = evaluator or EvaluatorAgent()
-        self.reporter = reporter or ReporterAgent()
+        self._reporter = reporter or ReporterAgent()
 
     def analyze_file(self, path: str | Path, on_progress: ProgressCallback | None = None) -> Report:
         """Analiza un archivo .txt, .pdf o .docx."""
@@ -58,7 +58,7 @@ class DetectionPipeline:
         return self._evaluator.evaluate(self._get_analyzer().analyze(chunks, on_progress=on_progress))
 
     def _report(self, text: str, source_name: str | None, on_progress: ProgressCallback | None) -> Report:
-        return self.reporter.build(self.evaluate_text(text, on_progress=on_progress), source_name=source_name)
+        return self._reporter.build(self.evaluate_text(text, on_progress=on_progress), source_name=source_name)
 
     def _get_analyzer(self) -> AnalyzerAgent:
         if self._analyzer is None:

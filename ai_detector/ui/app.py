@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from pathlib import Path
 from typing import Callable
 
 # Gradio lee estas variables al lanzar y anularían server_name/share: se eliminan
@@ -35,6 +36,11 @@ DEFAULT_PORT = 7860
 THEME = gr.themes.Default(font=["system-ui", "sans-serif"], font_mono=["ui-monospace", "monospace"])
 
 PASTED_TEXT_NAME = "Pasted text"
+
+# Gradio copia cada archivo subido a su caché temporal. El manejador borra la
+# copia en cuanto termina el análisis; además, cada 10 minutos (y al cerrar el
+# servidor) se borra lo que tenga más de 10 minutos, por si quedara algún resto.
+DELETE_CACHE = (600, 600)
 
 # Fragmento del documento con su puntuación, o separador sin etiqueta.
 Highlight = tuple[str, float | None]
@@ -57,6 +63,11 @@ def make_handler(pipeline: DetectionPipeline) -> Callable[..., tuple[str, list[H
                 raise gr.Error("Upload a file or paste some text to analyze.")
         except (ReaderError, FileNotFoundError, ModelNotAvailableError) as exc:
             raise gr.Error(str(exc)) from exc
+        finally:
+            # `file_path` es la copia en la caché de Gradio, nunca el original del
+            # usuario: se borra para no dejar documentos privados en disco.
+            if file_path:
+                Path(file_path).unlink(missing_ok=True)
         return render_markdown(report), _highlights(report)
 
     return handle
@@ -74,7 +85,7 @@ def _highlights(report: Report) -> list[Highlight]:
 
 def build_app(pipeline: DetectionPipeline) -> gr.Blocks:
     """Construye la interfaz sin lanzarla."""
-    with gr.Blocks(title="AI-text detector", analytics_enabled=False) as blocks:
+    with gr.Blocks(title="AI-text detector", analytics_enabled=False, delete_cache=DELETE_CACHE) as blocks:
         gr.Markdown(
             "# AI-text detector\n"
             "Runs entirely on this computer: the text never leaves it. "
@@ -108,6 +119,8 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     app = build_app(DetectionPipeline())
+    # En Gradio 6 el tema se pasa a launch() (por eso requirements.txt exige gradio>=6.0);
+    # es el que garantiza que el navegador no descarga fuentes de internet.
     app.queue().launch(server_name=SERVER_NAME, server_port=args.port, share=False, theme=THEME)
 
 

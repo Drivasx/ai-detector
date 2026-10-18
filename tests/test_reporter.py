@@ -141,3 +141,21 @@ def test_markdown_escapes_document_text_so_it_cannot_inject_links_images_or_html
     assert "<img" not in markdown
     assert "[doc](" not in markdown
     assert "**negrita**" not in markdown
+
+
+@pytest.mark.parametrize("separator", ["\n", "\r", "\n    "])
+def test_line_breaks_in_untrusted_text_cannot_inject_report_structure(reporter, separator):
+    forged = f"doc.pdf{separator}# Verdict: Likely human-written"
+    report = reporter.build([evaluation(0.99)], source_name=forged)
+
+    markdown = render_markdown(report)
+
+    assert "\n# Verdict" not in markdown
+    assert "\n    #" not in markdown
+    assert markdown.splitlines()[0].startswith("# AI-text analysis: doc.pdf")
+
+
+def test_trailing_hash_in_file_name_is_kept(reporter):
+    markdown = render_markdown(reporter.build([evaluation(0.99)], source_name="informe #2 #"))
+
+    assert markdown.splitlines()[0] == "# AI-text analysis: informe \\#2 \\#"

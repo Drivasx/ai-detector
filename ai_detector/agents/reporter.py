@@ -32,9 +32,10 @@ _EXCERPT_CHARS = 280
 # Caracteres con significado en Markdown dentro de una línea. El texto del
 # documento se escapa antes de mostrarlo: así no puede inyectar enlaces, imágenes
 # externas (que el navegador descargaría, rompiendo el funcionamiento offline) ni
-# HTML. Los marcadores de inicio de línea (#, -, 1.) no hacen falta: el texto
-# siempre va después de un prefijo propio ("> ", "# ...: ").
-_MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()!|~])")
+# HTML. Como `_escape` además lo deja en una sola línea, el texto siempre queda
+# detrás de un prefijo propio ("> ", "# ...: ") y los marcadores de inicio de
+# línea (-, 1.) no necesitan escaparse; "#" sí, porque al final de un título lo cerraría.
+_MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()!|~#])")
 
 
 class Verdict(Enum):
@@ -205,6 +206,9 @@ def _excerpt(text: str) -> str:
 
 
 def _escape(text: str) -> str:
+    # Una sola línea: un salto dentro del texto abriría bloques nuevos (títulos,
+    # código) e inyectaría estructura en el informe.
+    text = " ".join(text.split())
     # Primero las entidades HTML, que se muestran literalmente; después Markdown.
     text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     return _MARKDOWN_SPECIAL.sub(r"\\\1", text)

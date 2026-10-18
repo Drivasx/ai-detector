@@ -24,7 +24,48 @@ Supporting code: `ai_detector/analysis/` (scoring components), `ai_detector/mode
 python3 -m venv .venv && source .venv/bin/activate
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements-dev.txt
+python scripts/download_models.py   # once, online (~1.4 GB); only model names are sent
 ```
+
+After the download every analysis runs offline: importing `ai_detector` sets
+`HF_HUB_OFFLINE=1` and models are loaded with `local_files_only=True`.
+
+| Component | Model | Notes |
+|-----------|-------|-------|
+| Perplexity | `DeepESP/gpt2-spanish` | Causal GPT-2 small in Spanish, run in float32 |
+| Classifier | `pandrei7/autextification-upb-mtl` | AuTexTification 2023 (es/en); architecture re-implemented locally, no remote code |
+
+## Run
+
+```bash
+python -m ai_detector.ui.app            # http://127.0.0.1:7860 (localhost only)
+python -m ai_detector.ui.app --port 8000
+```
+
+Upload a `.txt`, `.pdf` or `.docx` file or paste text. The report shows the
+verdict, the AI probability and the most suspicious paragraphs; below it, every
+paragraph is coloured by AI likelihood.
+
+The UI never leaves the machine: it listens on `127.0.0.1` only, never creates a
+public share link, has Gradio telemetry disabled, uses system fonts (no web
+fonts) and renders the report with document text escaped and LaTeX disabled.
+
+## Calibration
+
+False positives depend on each person's writing style. Calibrate the threshold
+with texts **you wrote yourself before 2022** (before mass-market LLMs):
+
+```bash
+python scripts/calibrate.py ~/my-old-texts             # .txt, .pdf, .docx
+python scripts/calibrate.py ~/my-old-texts --recursive --target-fpr 0.02
+```
+
+The script analyzes every paragraph offline and picks the lowest threshold that
+flags at most `--target-fpr` (default 5%) of your paragraphs. The threshold is
+never lowered below the default (0.5) and is capped at 0.99, with a warning when
+your texts score that high. The result is saved to `calibration.json`
+(git-ignored) and the UI picks it up automatically; delete the file to go back
+to the default.
 
 ## Tests
 
@@ -35,5 +76,10 @@ pytest
 ## Status
 
 - [x] Project scaffold
-- [ ] Reader Agent
-- [ ] Segmenter, Analyzer, Evaluator, Reporter, UI, calibration
+- [x] Reader Agent
+- [x] Segmenter Agent
+- [x] Analyzer Agent
+- [x] Evaluator Agent
+- [x] Reporter Agent
+- [x] Gradio UI
+- [x] Calibration script

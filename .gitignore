@@ -15,3 +15,6 @@ models/
 
 # Calibration and report outputs
 outputs/
+
+# Personal calibration (scripts/calibrate.py)
+calibration.json

@@ -166,7 +166,7 @@ def test_progress_is_forwarded_to_gradio():
 
 def test_main_launches_on_localhost_without_share_on_the_requested_port(monkeypatch):
     captured = {}
-    monkeypatch.setattr(app, "DetectionPipeline", FakePipeline)
+    monkeypatch.setattr(app, "DetectionPipeline", lambda **kwargs: FakePipeline())
     monkeypatch.setattr(gr.Blocks, "launch", lambda self, **kwargs: captured.update(kwargs))
 
     app.main(["--port", "8123"])
@@ -195,3 +195,19 @@ def test_failure_to_delete_the_cached_copy_does_not_hide_the_result(tmp_path, mo
     markdown, _, _ = app.make_handler(FakePipeline())(str(tmp_path / "a.txt"), "")
 
     assert "Verdict" in markdown
+
+
+def test_main_uses_the_calibrated_threshold(monkeypatch):
+    built = {}
+
+    def fake_pipeline(reporter=None, **kwargs):
+        built["threshold"] = reporter.threshold
+        return FakePipeline()
+
+    monkeypatch.setattr(app, "DetectionPipeline", fake_pipeline)
+    monkeypatch.setattr(app, "resolve_threshold", lambda: 0.77)
+    monkeypatch.setattr(gr.Blocks, "launch", lambda self, **kwargs: None)
+
+    app.main([])
+
+    assert built["threshold"] == 0.77

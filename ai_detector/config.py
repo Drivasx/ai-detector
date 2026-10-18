@@ -114,3 +114,13 @@ DETECTION_THRESHOLD = 0.5
 
 # Número máximo de párrafos sospechosos que se destacan en el informe.
 REPORT_MAX_HIGHLIGHTS = 5
+
+# --- Calibración --------------------------------------------------------------
+
+# Archivo donde scripts/calibrate.py guarda el umbral propio del usuario. Si
+# existe, la interfaz lo usa en lugar de DETECTION_THRESHOLD. Es personal y no
+# se versiona (está en .gitignore).
+CALIBRATION_FILE = PROJECT_ROOT / "calibration.json"
+
+# Proporción máxima de párrafos humanos que se aceptan por encima del umbral.
+CALIBRATION_TARGET_FPR = 0.05

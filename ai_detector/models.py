@@ -36,7 +36,7 @@ def local_model_path(spec: ModelSpec) -> Path:
             "Run `python scripts/download_models.py` once while online."
         ) from exc
     path = Path(path)
-    missing = [name for name in spec.files if not (path / name).exists()]
+    missing = _missing_files(path, spec)
     if missing:
         raise ModelNotAvailableError(
             f"Model '{spec.repo_id}' is incomplete (missing: {', '.join(missing)}). "
@@ -53,4 +53,16 @@ def download_model(spec: ModelSpec) -> Path:
         cache_dir=config.MODELS_DIR,
         allow_patterns=list(spec.files),
     )
-    return Path(path)
+    path = Path(path)
+    # `allow_patterns` no falla si un archivo no existe en esa revisión: se
+    # comprueba aquí para no dar por buena una descarga incompleta.
+    missing = _missing_files(path, spec)
+    if missing:
+        raise ModelNotAvailableError(
+            f"Downloaded '{spec.repo_id}' at revision {spec.revision}, but these files are missing: {', '.join(missing)}."
+        )
+    return path
+
+
+def _missing_files(path: Path, spec: ModelSpec) -> list[str]:
+    return [name for name in spec.files if not (path / name).exists()]

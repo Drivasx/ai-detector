@@ -74,3 +74,11 @@ def make_docx(tmp_path):
         return path
 
     return _make
+
+
+@pytest.fixture(autouse=True)
+def _binoculars_models_absent(monkeypatch):
+    """Las calibraciones de prueba se puntúan sin Binoculars: se simula que sus modelos no están."""
+    from ai_detector import calibration
+
+    monkeypatch.setattr(calibration, "binoculars_available", lambda: False)

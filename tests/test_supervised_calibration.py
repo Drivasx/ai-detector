@@ -208,3 +208,17 @@ def test_without_calibration_file_settings_are_the_defaults(tmp_path):
     assert settings.threshold == config.DETECTION_THRESHOLD
     assert settings.evaluator_kwargs == {}
 
+
+
+@pytest.mark.parametrize("voted, available, loads", [(False, True, False), (True, False, False), (True, True, True)])
+def test_calibration_is_ignored_when_binoculars_availability_changed(tmp_path, monkeypatch, voted, available, loads):
+    from ai_detector import calibration
+    from ai_detector.agents.evaluator import EvaluatorAgent
+
+    bino = 0.9 if voted else None
+    docs = [EvaluatorAgent().evaluate([chunk(150, 3.7, bino=bino, index=i) for i in range(2)])]
+    path = tmp_path / "calibration.json"
+    save_calibration(calibration._threshold_result(docs, 0.0, []), path)
+    monkeypatch.setattr(calibration, "binoculars_available", lambda: available)
+
+    assert (load_calibration(path) is not None) == loads

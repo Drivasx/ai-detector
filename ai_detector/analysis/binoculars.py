@@ -21,7 +21,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from ai_detector import config
 from ai_detector.config import ModelSpec
-from ai_detector.models import local_model_path
+from ai_detector.models import ModelNotAvailableError, local_model_path
 
 
 def binoculars_from_logits(
@@ -42,6 +42,16 @@ def binoculars_from_logits(
     # Perplejidad cruzada: sorpresa media del ejecutor ante lo que predice el observador.
     x_ppl = -(observer_log_probs.exp() * performer_log_probs).sum(dim=-1).mean()
     return (log_ppl / x_ppl).item()
+
+
+def binoculars_available() -> bool:
+    """Si los dos modelos de Binoculars están en la caché local (sin cargarlos)."""
+    try:
+        for spec in (config.BINOCULARS_OBSERVER_MODEL, config.BINOCULARS_PERFORMER_MODEL):
+            local_model_path(spec)
+    except ModelNotAvailableError:
+        return False
+    return True
 
 
 class BinocularsScorer:

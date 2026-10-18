@@ -23,6 +23,7 @@ from typing import Protocol
 
 from ai_detector import config
 from ai_detector.agents.analyzer import ChunkAnalysis
+from ai_detector.analysis.binoculars import binoculars_available
 from ai_detector.agents.evaluator import COMPONENTS, ChunkEvaluation, EvaluatorAgent
 from ai_detector.agents.reader import SUPPORTED_EXTENSIONS, ReaderAgent, ReaderError
 
@@ -81,6 +82,8 @@ class CalibrationResult:
     chunk_false_positive_rate: float
     document_false_positive_rate: float
     skipped: list[tuple[str, str]] = field(default_factory=list)
+    # Si Binoculars votó al puntuar: con o sin él el mismo umbral no significa lo mismo.
+    binoculars_voted: bool = False
     # Solo con calibración supervisada (carpeta de textos IA).
     ai_file_count: int = 0
     ai_chunk_count: int = 0
@@ -198,6 +201,7 @@ def _threshold_result(documents: list[list[ChunkEvaluation]], target_fpr: float,
         target_false_positive_rate=target_fpr,
         file_count=len(documents),
         chunk_count=len(scores),
+        binoculars_voted=any(e.analysis.binoculars is not None for evaluations in documents for e in evaluations),
         chunk_false_positive_rate=sum(s >= choice.threshold for s in scores) / len(scores),
         document_false_positive_rate=flagged_documents / len(documents),
         skipped=skipped,
@@ -296,7 +300,9 @@ def save_calibration(result: CalibrationResult, path: str | Path = config.CALIBR
     data["models"] = {spec.repo_id: spec.revision for spec in config.ALL_MODELS}
     # Parámetros con los que se puntuó al elegir el umbral: si al cargar no coinciden
     # con los que se usarán, el umbral ya no vale y la calibración se ignora.
-    data["scoring"] = _scoring(result.weights, result.perplexity_references, result.binoculars_references)
+    data["scoring"] = _scoring(
+        result.weights, result.perplexity_references, result.binoculars_references, result.binoculars_voted
+    )
     Path(path).write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
@@ -338,18 +344,22 @@ def load_calibration(path: str | Path = config.CALIBRATION_FILE) -> CalibrationS
         evaluator_kwargs.get("weights"),
         evaluator_kwargs.get("perplexity_references"),
         evaluator_kwargs.get("binoculars_references"),
+        binoculars_available(),
     )
     if data.get("scoring") != expected:
-        return None  # Umbral elegido con otros pesos/referencias (p. ej. valores por defecto anteriores).
+        # Umbral elegido con otros pesos/referencias (p. ej. valores por defecto
+        # anteriores) o con Binoculars votando y ahora no (o al revés).
+        return None
     return CalibrationSettings(threshold=float(threshold), evaluator_kwargs=evaluator_kwargs)
 
 
-def _scoring(weights: dict | None, references: dict | None, binoculars: tuple | None) -> dict:
-    """Pesos y referencias efectivos, en forma comparable con lo guardado en JSON."""
+def _scoring(weights: dict | None, references: dict | None, binoculars: tuple | None, binoculars_voted: bool) -> dict:
+    """Pesos, referencias y si vota Binoculars, en forma comparable con lo guardado en JSON."""
     used = {
         "weights": weights or config.VOTING_WEIGHTS,
         "perplexity_references": references or config.PERPLEXITY_REFERENCES,
         "binoculars_references": binoculars or config.BINOCULARS_REFERENCES,
+        "binoculars_voted": binoculars_voted,
     }
     return json.loads(json.dumps(used))
 

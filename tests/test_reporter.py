@@ -159,3 +159,21 @@ def test_trailing_hash_in_file_name_is_kept(reporter):
     markdown = render_markdown(reporter.build([evaluation(0.99)], source_name="informe #2 #"))
 
     assert markdown.splitlines()[0] == "# AI-text analysis: informe \\#2 \\#"
+
+
+@pytest.mark.parametrize("start", ["- ", "+ ", "* ", "1. ", "2) ", "--- ", "=== "])
+def test_excerpt_starting_with_a_block_marker_stays_plain_text(reporter, start):
+    from markdown_it import MarkdownIt
+
+    text = start + " ".join(["palabra"] * 60)
+    html = MarkdownIt("commonmark").render(render_markdown(reporter.build([evaluation(0.99, text=text)])))
+
+    quote = html[html.index("<blockquote>") : html.index("</blockquote>")]
+    assert "<ul>" not in quote and "<ol>" not in quote and "<hr" not in quote and "<h" not in quote
+
+
+def test_confidence_boundaries_are_inclusive_despite_float_rounding():
+    agent = ReporterAgent(threshold=0.5)
+
+    assert agent.build([evaluation(0.6)]).confidence == "medium"
+    assert agent.build([evaluation(0.75)]).confidence == "high"

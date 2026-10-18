@@ -32,10 +32,11 @@ _EXCERPT_CHARS = 280
 # Caracteres con significado en Markdown dentro de una línea. El texto del
 # documento se escapa antes de mostrarlo: así no puede inyectar enlaces, imágenes
 # externas (que el navegador descargaría, rompiendo el funcionamiento offline) ni
-# HTML. Como `_escape` además lo deja en una sola línea, el texto siempre queda
-# detrás de un prefijo propio ("> ", "# ...: ") y los marcadores de inicio de
-# línea (-, 1.) no necesitan escaparse; "#" sí, porque al final de un título lo cerraría.
+# HTML. `_escape` además lo deja en una sola línea y neutraliza los marcadores de
+# bloque al inicio (listas, reglas), porque tras "> " también se interpretan.
 _MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()!|~#])")
+# Marcador de bloque al inicio del texto: "-", "+", "=" o una lista numerada ("1.", "2)").
+_LEADING_BLOCK_MARKER = re.compile(r"^(?:[-+=]|\d+(?=[.)]))")
 
 
 class Verdict(Enum):
@@ -117,7 +118,8 @@ class ReporterAgent:
         )
 
     def _confidence(self, ai_probability: float) -> str:
-        margin = abs(ai_probability - self.threshold)
+        # Redondeo: 0,6 - 0,5 da 0,0999... en coma flotante y caería en "low".
+        margin = round(abs(ai_probability - self.threshold), 9)
         for minimum, label in _CONFIDENCE_MARGINS:
             if margin >= minimum:
                 return label
@@ -211,7 +213,14 @@ def _escape(text: str) -> str:
     text = " ".join(text.split())
     # Primero las entidades HTML, que se muestran literalmente; después Markdown.
     text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    return _MARKDOWN_SPECIAL.sub(r"\\\1", text)
+    text = _MARKDOWN_SPECIAL.sub(r"\\\1", text)
+    return _LEADING_BLOCK_MARKER.sub(_escape_marker, text, count=1)
+
+
+def _escape_marker(match: re.Match[str]) -> str:
+    marker = match.group(0)
+    # En una lista numerada se escapa el signo que sigue al número ("1\.").
+    return marker + "\\" if marker[0].isdigit() else "\\" + marker
 
 
 def _percent(value: float) -> str:

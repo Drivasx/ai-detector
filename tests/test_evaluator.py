@@ -5,43 +5,8 @@ import math
 import pytest
 
 from ai_detector import config
-from ai_detector.agents.analyzer import ChunkAnalysis
 from ai_detector.agents.evaluator import EvaluatorAgent
-from ai_detector.agents.segmenter import Chunk
-from ai_detector.analysis.linguistic import LinguisticFeatures
-from ai_detector.analysis.perplexity import PerplexityResult
-
-HUMAN_PPL, AI_PPL = 60.0, 15.0
-HUMAN_BURST, AI_BURST = 3.2, 2.2
-THRESHOLD = 0.9
-
-
-def linguistic(score: float) -> LinguisticFeatures:
-    return LinguisticFeatures(
-        word_count=50,
-        sentence_count=3,
-        sentence_length_mean=16.0,
-        sentence_length_variance=4.0,
-        sentence_length_cv=0.125,
-        type_token_ratio=0.8,
-        connector_rate=1.0,
-        connector_hits=(),
-        lexical_density=0.5,
-        score=score,
-    )
-
-
-def analysis(
-    perplexity: float | None = HUMAN_PPL,
-    burstiness: float | None = HUMAN_BURST,
-    classifier: float = THRESHOLD,
-    linguistic_score: float = 0.5,
-    words: int = 60,
-    index: int = 0,
-) -> ChunkAnalysis:
-    chunk = Chunk(index=index, text=" ".join(["palabra"] * words))
-    result = PerplexityResult(perplexity=perplexity, burstiness=burstiness, token_count=0 if perplexity is None else 80)
-    return ChunkAnalysis(chunk=chunk, perplexity=result, classifier_probability=classifier, linguistic=linguistic(linguistic_score))
+from tests.builders import AI_BURST, AI_PPL, HUMAN_BURST, HUMAN_PPL, THRESHOLD, analysis
 
 
 @pytest.fixture

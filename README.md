@@ -48,4 +48,5 @@ pytest
 - [x] Segmenter Agent
 - [x] Analyzer Agent
 - [x] Evaluator Agent
-- [ ] Reporter, UI, calibration
+- [x] Reporter Agent
+- [ ] UI, calibration

@@ -105,3 +105,12 @@ PERPLEXITY_REFERENCES = {
 
 # Temperatura al reescalar el clasificador: >1 suaviza sus probabilidades extremas.
 CLASSIFIER_TEMPERATURE = 2.0
+
+# --- Informe ------------------------------------------------------------------
+
+# Umbral de decisión sobre la probabilidad de IA. 0,5 es el punto neutro del voto;
+# scripts/calibrate.py calcula uno propio a partir de textos humanos del usuario.
+DETECTION_THRESHOLD = 0.5
+
+# Número máximo de párrafos sospechosos que se destacan en el informe.
+REPORT_MAX_HIGHLIGHTS = 5

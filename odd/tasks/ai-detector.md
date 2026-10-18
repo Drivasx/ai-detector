@@ -31,7 +31,7 @@ Objective: local, CPU-only AI-text detector built as an agent pipeline with a Gr
 | T5 | S6 | inline | done | 030cf48 (review carry-overs), c97d627 (evaluator); 89 passed |
 | T6 | S7 | inline | done | c319e8e; 107 passed |
 | T7 | S9 | inline | done | 5b17dcd (bare URLs), a000f7f (pipeline), d2a20dd (UI); 135 passed |
-| T8 | S10 | inline | done | CALIB_COMMIT; 173 passed |
+| T8 | S10 | inline | done | e203293; 173 passed |
 | T9 | S8 | inline | done | 26a8e2a, b585b43; UI shows the download instruction when models are missing (d2a20dd) |
 
 Delivery: chain strategy `stacked-to-main` (user choice). Slices: (1) 7e4cab5 scaffold; (2) 09aeeaf reader; (3) d19bbcd segmenter; (4) 8bb39de linguistic; (5) 26a8e2a model cache; (6) 68cf28e analyzer models + agent.

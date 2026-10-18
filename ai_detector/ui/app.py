@@ -28,7 +28,8 @@ import gradio as gr  # noqa: E402
 from ai_detector.agents.reader import SUPPORTED_EXTENSIONS, ReaderError  # noqa: E402
 from ai_detector.agents.reporter import Report, ReporterAgent, render_markdown  # noqa: E402
 from ai_detector.agents.evaluator import EvaluatorAgent  # noqa: E402
-from ai_detector.calibration import resolve_settings  # noqa: E402
+from ai_detector import config  # noqa: E402
+from ai_detector.calibration import load_calibration, resolve_settings  # noqa: E402
 from ai_detector.models import ModelNotAvailableError  # noqa: E402
 from ai_detector.pipeline import DetectionPipeline  # noqa: E402
 
@@ -143,7 +144,12 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     # Umbral (y pesos/referencias si la calibración fue supervisada) de calibration.json.
-    settings = resolve_settings()
+    if config.CALIBRATION_FILE.exists() and load_calibration(config.CALIBRATION_FILE) is None:
+        print(
+            f"Ignoring {config.CALIBRATION_FILE.name}: it is outdated or invalid for the current scoring; "
+            "run scripts/calibrate.py again. Using the default threshold."
+        )
+    settings = resolve_settings(config.CALIBRATION_FILE)
     pipeline = DetectionPipeline(
         evaluator=EvaluatorAgent(**settings.evaluator_kwargs), reporter=ReporterAgent(threshold=settings.threshold)
     )

@@ -162,8 +162,10 @@ def test_resolve_threshold_prefers_calibration_and_falls_back_to_default(tmp_pat
     path = tmp_path / "calibration.json"
     assert resolve_threshold(path) == config.DETECTION_THRESHOLD
 
-    path.write_text('{"threshold": 0.73}', encoding="utf-8")
-    assert resolve_threshold(path) == 0.73
+    save_calibration(
+        calibrate([write(tmp_path, "a.txt", [0.72, 0.6])], FakePipeline(), ReaderAgent(), target_fpr=0.0), path
+    )
+    assert resolve_threshold(path) == pytest.approx(0.721)
 
 
 def test_document_rate_counts_documents_with_any_flagged_paragraph(tmp_path):

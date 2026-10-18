@@ -208,7 +208,7 @@ def test_main_uses_the_calibrated_threshold_and_voting_parameters(monkeypatch):
         return FakePipeline()
 
     monkeypatch.setattr(app, "DetectionPipeline", fake_pipeline)
-    monkeypatch.setattr(app, "resolve_settings", lambda: CalibrationSettings(0.77, {"weights": weights}))
+    monkeypatch.setattr(app, "resolve_settings", lambda path=None: CalibrationSettings(0.77, {"weights": weights}))
     monkeypatch.setattr(gr.Blocks, "launch", lambda self, **kwargs: None)
 
     app.main([])
@@ -226,3 +226,15 @@ def test_file_not_found_unrelated_to_the_upload_shows_the_real_error(tmp_path):
 
     with pytest.raises(gr.Error, match="models/config.json is missing"):
         app.make_handler(BrokenModelPipeline())(str(uploaded), "")
+
+
+def test_main_warns_when_an_existing_calibration_is_ignored(tmp_path, monkeypatch, capsys):
+    stale = tmp_path / "calibration.json"
+    stale.write_text('{"threshold": 0.6}', encoding="utf-8")
+    monkeypatch.setattr(app.config, "CALIBRATION_FILE", stale)
+    monkeypatch.setattr(app, "DetectionPipeline", lambda **kwargs: FakePipeline())
+    monkeypatch.setattr(gr.Blocks, "launch", lambda self, **kwargs: None)
+
+    app.main([])
+
+    assert "run scripts/calibrate.py again" in capsys.readouterr().out

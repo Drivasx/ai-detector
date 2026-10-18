@@ -262,14 +262,18 @@ def save_calibration(result: CalibrationResult, path: str | Path = config.CALIBR
     data["created_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     # Los modelos fijados condicionan las puntuaciones: si cambian, hay que recalibrar.
     data["models"] = {spec.repo_id: spec.revision for spec in config.ALL_MODELS}
+    # Parámetros con los que se puntuó al elegir el umbral: si al cargar no coinciden
+    # con los que se usarán, el umbral ya no vale y la calibración se ignora.
+    data["scoring"] = _scoring(result.weights, result.perplexity_references)
     Path(path).write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def load_calibration(path: str | Path = config.CALIBRATION_FILE) -> CalibrationSettings | None:
-    """Ajustes guardados, o None si el archivo no existe o su umbral no es válido.
+    """Ajustes guardados, o None si el archivo no existe o ya no es aplicable.
 
-    Los pesos y referencias ajustados se descartan (quedando solo el umbral) si
-    no tienen la forma que produce la calibración.
+    Se ignora entero si el umbral no es válido, si los pesos o referencias ajustados
+    están dañados, o si se calculó con otros parámetros de puntuación (por ejemplo,
+    valores por defecto anteriores): en todos esos casos hay que recalibrar.
     """
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -284,7 +288,9 @@ def load_calibration(path: str | Path = config.CALIBRATION_FILE) -> CalibrationS
         return None
     weights, references = data.get("weights"), data.get("perplexity_references")
     evaluator_kwargs = {}
-    if _valid_weights(weights) and _valid_references(references):
+    if weights is not None or references is not None:
+        if not (_valid_weights(weights) and _valid_references(references)):
+            return None  # Ajuste supervisado dañado: su umbral no sirve sin él.
         evaluator_kwargs = {
             "weights": {name: float(weights[name]) for name in COMPONENTS},
             "perplexity_references": {
@@ -293,7 +299,19 @@ def load_calibration(path: str | Path = config.CALIBRATION_FILE) -> CalibrationS
                 "burstiness_weight": float(references["burstiness_weight"]),
             },
         }
+    expected = _scoring(evaluator_kwargs.get("weights"), evaluator_kwargs.get("perplexity_references"))
+    if data.get("scoring") != expected:
+        return None  # Umbral elegido con otros pesos/referencias (p. ej. valores por defecto anteriores).
     return CalibrationSettings(threshold=float(threshold), evaluator_kwargs=evaluator_kwargs)
+
+
+def _scoring(weights: dict | None, references: dict | None) -> dict:
+    """Pesos y referencias efectivos, en forma comparable con lo guardado en JSON."""
+    used = {
+        "weights": weights or config.VOTING_WEIGHTS,
+        "perplexity_references": references or config.PERPLEXITY_REFERENCES,
+    }
+    return json.loads(json.dumps(used))
 
 
 def _valid_weights(weights) -> bool:

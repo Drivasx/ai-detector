@@ -106,14 +106,29 @@ def test_supervised_settings_round_trip_and_resolve(tmp_path):
         {"perplexity_references": {"perplexity": [20, 120], "burstiness": [3.6, 2.6], "burstiness_weight": 0.3}},
     ],
 )
-def test_invalid_fitted_parameters_are_ignored_but_threshold_is_kept(tmp_path, extra):
+def test_invalid_fitted_parameters_discard_the_whole_calibration(tmp_path, extra):
+    # El umbral se eligió con esos parámetros: sin ellos ya no sirve.
     path = tmp_path / "calibration.json"
     path.write_text(json.dumps({"threshold": 0.6, **extra}), encoding="utf-8")
 
-    settings = load_calibration(path)
+    assert load_calibration(path) is None
 
-    assert settings.threshold == 0.6
-    assert settings.evaluator_kwargs == {}
+
+def test_threshold_only_calibration_is_ignored_when_default_scoring_changed(tmp_path):
+    path = tmp_path / "calibration.json"
+    stale_scoring = {"weights": {"perplexity": 0.4, "classifier": 0.25, "linguistic": 0.35},
+                     "perplexity_references": {"perplexity": [60, 15], "burstiness": [3.2, 2.2], "burstiness_weight": 0.3}}
+    path.write_text(json.dumps({"threshold": 0.6, "scoring": stale_scoring}), encoding="utf-8")
+
+    assert load_calibration(path) is None
+    assert resolve_settings(path).threshold == config.DETECTION_THRESHOLD
+
+
+def test_calibration_without_scoring_record_is_ignored(tmp_path):
+    path = tmp_path / "calibration.json"
+    path.write_text('{"threshold": 0.6}', encoding="utf-8")
+
+    assert load_calibration(path) is None
 
 
 def test_without_calibration_file_settings_are_the_defaults(tmp_path):
@@ -121,3 +136,4 @@ def test_without_calibration_file_settings_are_the_defaults(tmp_path):
 
     assert settings.threshold == config.DETECTION_THRESHOLD
     assert settings.evaluator_kwargs == {}
+

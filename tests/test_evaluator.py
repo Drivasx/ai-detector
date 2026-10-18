@@ -6,14 +6,25 @@ import pytest
 
 from ai_detector import config
 from ai_detector.agents.evaluator import EvaluatorAgent
-from tests.builders import AI_BURST, AI_PPL, HUMAN_BURST, HUMAN_PPL, THRESHOLD, analysis
+from tests.builders import (
+    AI_BINOCULARS,
+    AI_BURST,
+    AI_PPL,
+    HUMAN_BINOCULARS,
+    HUMAN_BURST,
+    HUMAN_PPL,
+    THRESHOLD,
+    analysis,
+)
 
 
 @pytest.fixture
 def evaluator():
     return EvaluatorAgent(
-        weights={"perplexity": 0.5, "classifier": 0.2, "linguistic": 0.3},
+        # Binoculars no vota salvo que el análisis traiga su puntuación (por defecto None).
+        weights={"perplexity": 0.5, "binoculars": 0.4, "classifier": 0.2, "linguistic": 0.3},
         perplexity_references={"perplexity": (HUMAN_PPL, AI_PPL), "burstiness": (HUMAN_BURST, AI_BURST), "burstiness_weight": 0.25},
+        binoculars_references=(HUMAN_BINOCULARS, AI_BINOCULARS),
         classifier_threshold=THRESHOLD,
         classifier_temperature=1.0,
     )
@@ -119,9 +130,9 @@ def test_no_analyses_returns_empty_list(evaluator):
 @pytest.mark.parametrize(
     "weights",
     [
-        {"perplexity": -0.1, "classifier": 0.5, "linguistic": 0.6},
-        {"perplexity": 0.0, "classifier": 0.0, "linguistic": 0.0},
-        {"perplexity": 0.5, "classifier": 0.5},
+        {"perplexity": -0.1, "binoculars": 0.1, "classifier": 0.5, "linguistic": 0.6},
+        {"perplexity": 0.0, "binoculars": 0.0, "classifier": 0.0, "linguistic": 0.0},
+        {"perplexity": 0.5, "classifier": 0.5, "linguistic": 0.5},
     ],
 )
 def test_invalid_weights_raise_value_error(weights):
@@ -130,12 +141,31 @@ def test_invalid_weights_raise_value_error(weights):
 
 
 def test_zero_weight_components_do_not_vote_and_no_evidence_is_neutral():
-    agent = EvaluatorAgent(weights={"perplexity": 1.0, "classifier": 0.0, "linguistic": 0.0})
+    agent = EvaluatorAgent(weights={"perplexity": 1.0, "binoculars": 0.0, "classifier": 0.0, "linguistic": 0.0})
 
     (evaluation,) = agent.evaluate([analysis(perplexity=None, burstiness=None, linguistic_score=1.0)])
 
     assert evaluation.components == ()
     assert evaluation.ai_probability == pytest.approx(0.5)
+
+
+def test_binoculars_score_is_ramped_between_its_references_and_votes(evaluator):
+    middle = (HUMAN_BINOCULARS + AI_BINOCULARS) / 2
+    human, mid, ai = evaluator.evaluate(
+        [analysis(binoculars=s, linguistic_score=0.8, index=i) for i, s in enumerate([1.2, middle, 0.5])]
+    )
+
+    assert components(human)["binoculars"] == 0.0
+    assert components(mid)["binoculars"] == pytest.approx(0.5)
+    assert components(ai)["binoculars"] == 1.0
+    # Ahora vota con su peso: perplejidad 0, binoculars 1, clasificador 0,5, lingüístico 0,8.
+    assert ai.ai_probability == pytest.approx((0.4 * 1.0 + 0.2 * 0.5 + 0.3 * 0.8) / 1.4)
+
+
+def test_missing_binoculars_score_does_not_vote(evaluator):
+    (evaluation,) = evaluator.evaluate([analysis(binoculars=None)])
+
+    assert "binoculars" not in components(evaluation)
 
 
 # --- Valores por defecto (diagnóstico en odd/tasks/detection-quality.md) ---

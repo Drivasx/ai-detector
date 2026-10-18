@@ -12,6 +12,7 @@ import torch
 from ai_detector import config
 from ai_detector.agents.analyzer import AnalyzerAgent
 from ai_detector.agents.segmenter import Chunk
+from ai_detector.analysis.binoculars import BinocularsScorer
 from ai_detector.analysis.classifier import AIClassifier
 from ai_detector.analysis.perplexity import PerplexityScorer
 from ai_detector.models import ModelNotAvailableError, local_model_path
@@ -76,10 +77,31 @@ def test_classifier_cache_contains_no_remote_code():
     assert not list(local_model_path(config.CLASSIFIER_MODEL).glob("*.py"))
 
 
-def test_analyzer_with_local_models_produces_all_three_signals():
+def test_binoculars_scores_fluent_spanish_lower_than_shuffled_words():
+    scorer = BinocularsScorer()
+    words = FLUENT.split()
+    shuffled = " ".join(words[::2] + words[1::2])
+
+    fluent, scrambled = scorer.score(FLUENT), scorer.score(shuffled)
+
+    assert 0.0 < fluent < scrambled
+    assert scorer._observer.dtype == scorer._performer.dtype == torch.float32
+
+
+def test_binoculars_models_share_the_tokenizer():
+    observer, performer = (
+        local_model_path(spec) / "tokenizer.json"
+        for spec in (config.BINOCULARS_OBSERVER_MODEL, config.BINOCULARS_PERFORMER_MODEL)
+    )
+
+    assert observer.read_bytes() == performer.read_bytes()
+
+
+def test_analyzer_with_local_models_produces_all_signals():
     results = AnalyzerAgent.with_local_models().analyze([Chunk(index=0, text=FLUENT)])
 
     (result,) = results
     assert result.perplexity.perplexity > 1.0
     assert 0.0 <= result.classifier_probability <= 1.0
     assert 0.0 <= result.linguistic.score <= 1.0
+    assert result.binoculars > 0.0

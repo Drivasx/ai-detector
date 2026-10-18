@@ -46,6 +46,7 @@ class FittedParameters:
     """Referencias y pesos del voto ajustados con textos humanos y de IA del usuario."""
 
     perplexity_references: dict
+    binoculars_references: tuple[float, float]
     weights: dict[str, float]
     # Área bajo la curva ROC de cada componente: 0,5 = no separa, 1 = separa del todo.
     auc: dict[str, float]
@@ -87,6 +88,7 @@ class CalibrationResult:
     ai_detection_rate: float | None = None
     weights: dict[str, float] | None = None
     perplexity_references: dict | None = None
+    binoculars_references: tuple[float, float] | None = None
     auc: dict[str, float] | None = None
     warnings: list[str] = field(default_factory=list)
 
@@ -151,7 +153,7 @@ def calibrate(
         raise CalibrationError("No usable AI texts were found to calibrate with.")
 
     fitted = fit_parameters([a for doc in human_docs for a in doc], [a for doc in ai_docs for a in doc])
-    evaluator = EvaluatorAgent(weights=fitted.weights, perplexity_references=fitted.perplexity_references)
+    evaluator = EvaluatorAgent(**_evaluator_kwargs(fitted))
     result = _threshold_result([evaluator.evaluate(doc) for doc in human_docs], target_fpr, skipped)
     ai_scores = [e.ai_probability for doc in ai_docs for e in evaluator.evaluate(doc)]
     return replace(
@@ -161,6 +163,7 @@ def calibrate(
         ai_detection_rate=sum(s >= result.threshold for s in ai_scores) / len(ai_scores),
         weights=fitted.weights,
         perplexity_references=fitted.perplexity_references,
+        binoculars_references=fitted.binoculars_references,
         auc=fitted.auc,
         warnings=fitted.warnings,
     )
@@ -205,10 +208,17 @@ def fit_parameters(human: list[ChunkAnalysis], ai: list[ChunkAnalysis]) -> Fitte
     warnings: list[str] = []
     references = _fit_references(human, ai, warnings)
     if references is None:
-        return FittedParameters(config.PERPLEXITY_REFERENCES, dict(config.VOTING_WEIGHTS), {}, warnings)
+        return FittedParameters(
+            config.PERPLEXITY_REFERENCES, config.BINOCULARS_REFERENCES, dict(config.VOTING_WEIGHTS), {}, warnings
+        )
+    binoculars_references = _fit_binoculars_references(human, ai, warnings)
 
     # Peso uniforme solo para obtener la probabilidad de cada componente por separado.
-    probe = EvaluatorAgent(weights={name: 1.0 for name in COMPONENTS}, perplexity_references=references)
+    probe = EvaluatorAgent(
+        weights={name: 1.0 for name in COMPONENTS},
+        perplexity_references=references,
+        binoculars_references=binoculars_references,
+    )
     human_probs, ai_probs = _component_probabilities(probe, human), _component_probabilities(probe, ai)
     auc = {name: _auc(human_probs[name], ai_probs[name]) for name in COMPONENTS}
     # Una señal que no separa mejor que el azar (AUC <= 0,5) no vota.
@@ -219,7 +229,15 @@ def fit_parameters(human: list[ChunkAnalysis], ai: list[ChunkAnalysis]) -> Fitte
         weights = dict(config.VOTING_WEIGHTS)
     else:
         weights = {name: value / total for name, value in separation.items()}
-    return FittedParameters(references, weights, auc, warnings)
+    return FittedParameters(references, binoculars_references, weights, auc, warnings)
+
+
+def _evaluator_kwargs(fitted: FittedParameters) -> dict:
+    return {
+        "weights": fitted.weights,
+        "perplexity_references": fitted.perplexity_references,
+        "binoculars_references": fitted.binoculars_references,
+    }
 
 
 def _fit_references(human, ai, warnings) -> dict | None:
@@ -239,6 +257,19 @@ def _fit_references(human, ai, warnings) -> dict | None:
         "burstiness": (human_burst, ai_burst),
         "burstiness_weight": config.PERPLEXITY_REFERENCES["burstiness_weight"],
     }
+
+
+def _fit_binoculars_references(human, ai, warnings) -> tuple[float, float]:
+    """Medianas de Binoculars de cada clase; las de config si no hay datos o salen invertidas."""
+    human_scores = [a.binoculars for a in human if a.binoculars is not None]
+    ai_scores = [a.binoculars for a in ai if a.binoculars is not None]
+    if not human_scores or not ai_scores:
+        return config.BINOCULARS_REFERENCES  # Sin medidas: su AUC será 0,5 y no votará.
+    human_median, ai_median = statistics.median(human_scores), statistics.median(ai_scores)
+    if human_median <= ai_median:
+        warnings.append("Binoculars does not score your AI texts lower than your human texts; its default references kept.")
+        return config.BINOCULARS_REFERENCES
+    return (human_median, ai_median)
 
 
 def _component_probabilities(evaluator: EvaluatorAgent, analyses: list[ChunkAnalysis]) -> dict[str, list[float]]:
@@ -264,7 +295,7 @@ def save_calibration(result: CalibrationResult, path: str | Path = config.CALIBR
     data["models"] = {spec.repo_id: spec.revision for spec in config.ALL_MODELS}
     # Parámetros con los que se puntuó al elegir el umbral: si al cargar no coinciden
     # con los que se usarán, el umbral ya no vale y la calibración se ignora.
-    data["scoring"] = _scoring(result.weights, result.perplexity_references)
+    data["scoring"] = _scoring(result.weights, result.perplexity_references, result.binoculars_references)
     Path(path).write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
@@ -287,10 +318,12 @@ def load_calibration(path: str | Path = config.CALIBRATION_FILE) -> CalibrationS
     if not config.DETECTION_THRESHOLD <= threshold <= MAX_THRESHOLD:
         return None
     weights, references = data.get("weights"), data.get("perplexity_references")
+    binoculars = data.get("binoculars_references")
     evaluator_kwargs = {}
-    if weights is not None or references is not None:
-        if not (_valid_weights(weights) and _valid_references(references)):
-            return None  # Ajuste supervisado dañado: su umbral no sirve sin él.
+    if weights is not None or references is not None or binoculars is not None:
+        valid = _valid_weights(weights) and _valid_references(references) and _valid_binoculars(binoculars)
+        if not valid:
+            return None  # Ajuste supervisado dañado o anterior a Binoculars: su umbral no sirve sin él.
         evaluator_kwargs = {
             "weights": {name: float(weights[name]) for name in COMPONENTS},
             "perplexity_references": {
@@ -298,18 +331,24 @@ def load_calibration(path: str | Path = config.CALIBRATION_FILE) -> CalibrationS
                 "burstiness": tuple(references["burstiness"]),
                 "burstiness_weight": float(references["burstiness_weight"]),
             },
+            "binoculars_references": (float(binoculars[0]), float(binoculars[1])),
         }
-    expected = _scoring(evaluator_kwargs.get("weights"), evaluator_kwargs.get("perplexity_references"))
+    expected = _scoring(
+        evaluator_kwargs.get("weights"),
+        evaluator_kwargs.get("perplexity_references"),
+        evaluator_kwargs.get("binoculars_references"),
+    )
     if data.get("scoring") != expected:
         return None  # Umbral elegido con otros pesos/referencias (p. ej. valores por defecto anteriores).
     return CalibrationSettings(threshold=float(threshold), evaluator_kwargs=evaluator_kwargs)
 
 
-def _scoring(weights: dict | None, references: dict | None) -> dict:
+def _scoring(weights: dict | None, references: dict | None, binoculars: tuple | None) -> dict:
     """Pesos y referencias efectivos, en forma comparable con lo guardado en JSON."""
     used = {
         "weights": weights or config.VOTING_WEIGHTS,
         "perplexity_references": references or config.PERPLEXITY_REFERENCES,
+        "binoculars_references": binoculars or config.BINOCULARS_REFERENCES,
     }
     return json.loads(json.dumps(used))
 
@@ -332,6 +371,13 @@ def _valid_references(references) -> bool:
     if not all(_is_number(v) for v in numbers):
         return False
     return human_ppl > ai_ppl > 0 and human_burst > ai_burst > 0 and 0 <= burstiness_weight <= 1
+
+
+def _valid_binoculars(references) -> bool:
+    if not isinstance(references, (list, tuple)) or len(references) != 2:
+        return False
+    human_score, ai_score = references
+    return _is_number(human_score) and _is_number(ai_score) and human_score > ai_score > 0
 
 
 def _is_number(value) -> bool:

@@ -1,9 +1,10 @@
-"""Agente evaluador: combina las tres puntuaciones de cada bloque mediante votación ponderada.
+"""Agente evaluador: combina las puntuaciones de cada bloque mediante votación ponderada.
 
 Cada componente del análisis se traduce primero a una probabilidad de IA en [0, 1]:
 
 - Perplejidad: rampa en escala logarítmica entre una perplejidad típica humana y
   una típica de IA, combinada con la burstiness (variación de la sorpresa por token).
+- Binoculars: rampa lineal entre una puntuación típica humana y una típica de IA.
 - Clasificador: sus probabilidades vienen sesgadas hacia 1, así que se reescalan
   en el espacio logit alrededor de su umbral de decisión (el umbral pasa a ser 0,5).
 - Rasgos lingüísticos: su puntuación ya es una probabilidad.
@@ -24,7 +25,7 @@ from ai_detector.agents.analyzer import ChunkAnalysis
 from ai_detector.agents.segmenter import Chunk
 from ai_detector.analysis.linguistic import ramp
 
-COMPONENTS = ("perplexity", "classifier", "linguistic")
+COMPONENTS = ("perplexity", "binoculars", "classifier", "linguistic")
 
 # Evita logits infinitos cuando el clasificador devuelve exactamente 0 o 1.
 _EPSILON = 1e-6
@@ -65,12 +66,14 @@ class EvaluatorAgent:
         self,
         weights: dict[str, float] | None = None,
         perplexity_references: dict | None = None,
+        binoculars_references: tuple[float, float] | None = None,
         classifier_threshold: float = config.CLASSIFIER_THRESHOLD,
         classifier_temperature: float = config.CLASSIFIER_TEMPERATURE,
     ) -> None:
         self.weights = dict(weights if weights is not None else config.VOTING_WEIGHTS)
         _validate_weights(self.weights)
         self.perplexity_references = perplexity_references or config.PERPLEXITY_REFERENCES
+        self.binoculars_references = tuple(binoculars_references or config.BINOCULARS_REFERENCES)
         self.classifier_threshold = classifier_threshold
         self.classifier_temperature = classifier_temperature
 
@@ -81,6 +84,7 @@ class EvaluatorAgent:
     def _evaluate(self, analysis: ChunkAnalysis) -> ChunkEvaluation:
         probabilities = {
             "perplexity": self._perplexity_probability(analysis),
+            "binoculars": self._binoculars_probability(analysis.binoculars),
             "classifier": self._classifier_probability(analysis.classifier_probability),
             "linguistic": analysis.linguistic.score,
         }
@@ -123,6 +127,12 @@ class EvaluatorAgent:
         burstiness_weight = self.perplexity_references["burstiness_weight"]
         burstiness_part = ramp(result.burstiness, human_burst, ai_burst)
         return (1 - burstiness_weight) * perplexity_part + burstiness_weight * burstiness_part
+
+    def _binoculars_probability(self, score: float | None) -> float | None:
+        if score is None:
+            return None  # Sin modelos de Binoculars o bloque sin tokens: no vota.
+        human_score, ai_score = self.binoculars_references
+        return ramp(score, human_score, ai_score)
 
     def _classifier_probability(self, probability: float) -> float:
         # Desplazamiento en el espacio logit: el umbral de los autores queda en 0,5.

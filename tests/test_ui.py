@@ -201,7 +201,7 @@ def test_main_uses_the_calibrated_threshold_and_voting_parameters(monkeypatch):
     from ai_detector.calibration import CalibrationSettings
 
     built = {}
-    weights = {"perplexity": 0.7, "classifier": 0.0, "linguistic": 0.3}
+    weights = {"perplexity": 0.5, "binoculars": 0.2, "classifier": 0.0, "linguistic": 0.3}
 
     def fake_pipeline(reporter=None, evaluator=None, **kwargs):
         built["threshold"], built["weights"] = reporter.threshold, evaluator.weights

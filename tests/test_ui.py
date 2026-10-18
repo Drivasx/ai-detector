@@ -47,18 +47,20 @@ def test_analyzes_uploaded_file_and_returns_report_and_highlights(tmp_path):
     pipeline = FakePipeline()
     path = tmp_path / "ensayo.txt"
 
-    markdown, highlights = app.make_handler(pipeline)(str(path), "")
+    markdown, highlights, file_value = app.make_handler(pipeline)(str(path), "")
 
     assert pipeline.calls == [("file", str(path))]
     assert "ensayo" in markdown
     # Cada bloque con su puntuación en [-1, 1]: -1 humano, +1 IA, 0 neutral.
     assert highlights == [("Primer párrafo.", pytest.approx(0.8)), ("\n\n", None), ("Segundo.", pytest.approx(-0.6))]
+    # El componente de archivo se vacía: su copia en caché ya se borró.
+    assert file_value is None
 
 
 def test_analyzes_pasted_text_when_no_file_is_given():
     pipeline = FakePipeline()
 
-    markdown, _ = app.make_handler(pipeline)(None, "Texto pegado.")
+    markdown, _, _ = app.make_handler(pipeline)(None, "Texto pegado.")
 
     assert pipeline.calls == [("text", "Texto pegado.")]
     assert "Pasted text" in markdown
@@ -173,3 +175,23 @@ def test_main_launches_on_localhost_without_share_on_the_requested_port(monkeypa
     assert captured["share"] is False
     assert captured["server_port"] == 8123
     assert captured["theme"] is app.THEME
+
+
+def test_stale_upload_path_asks_to_upload_again(tmp_path):
+    class GonePipeline(FakePipeline):
+        def analyze_file(self, path, on_progress=None):
+            raise FileNotFoundError(f"File not found: {path}")
+
+    with pytest.raises(gr.Error, match="upload it again"):
+        app.make_handler(GonePipeline())(str(tmp_path / "ya_borrado.txt"), "")
+
+
+def test_failure_to_delete_the_cached_copy_does_not_hide_the_result(tmp_path, monkeypatch):
+    def failing_unlink(self, missing_ok=False):
+        raise PermissionError("busy file")
+
+    monkeypatch.setattr(app.Path, "unlink", failing_unlink)
+
+    markdown, _, _ = app.make_handler(FakePipeline())(str(tmp_path / "a.txt"), "")
+
+    assert "Verdict" in markdown

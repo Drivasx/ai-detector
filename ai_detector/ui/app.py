@@ -46,8 +46,12 @@ DELETE_CACHE = (600, 600)
 Highlight = tuple[str, float | None]
 
 
-def make_handler(pipeline: DetectionPipeline) -> Callable[..., tuple[str, list[Highlight]]]:
-    """Crea la función que Gradio ejecuta al pulsar "Analyze"."""
+def make_handler(pipeline: DetectionPipeline) -> Callable[..., tuple[str, list[Highlight], None]]:
+    """Crea la función que Gradio ejecuta al pulsar "Analyze".
+
+    Devuelve el informe, el documento coloreado y None para vaciar el componente
+    de archivo, cuya copia en caché se borra al terminar.
+    """
 
     def handle(file_path: str | None, pasted_text: str | None, progress: gr.Progress = gr.Progress()):
         def on_progress(done: int, total: int) -> None:
@@ -61,16 +65,31 @@ def make_handler(pipeline: DetectionPipeline) -> Callable[..., tuple[str, list[H
                 report = pipeline.analyze_text(pasted_text, source_name=PASTED_TEXT_NAME, on_progress=on_progress)
             else:
                 raise gr.Error("Upload a file or paste some text to analyze.")
-        except (ReaderError, FileNotFoundError, ModelNotAvailableError) as exc:
+        except FileNotFoundError as exc:
+            # Ruta de una subida anterior cuya copia ya se borró.
+            raise gr.Error("The uploaded file is no longer available; please upload it again.") from exc
+        except (ReaderError, ModelNotAvailableError) as exc:
             raise gr.Error(str(exc)) from exc
         finally:
-            # `file_path` es la copia en la caché de Gradio, nunca el original del
-            # usuario: se borra para no dejar documentos privados en disco.
             if file_path:
-                Path(file_path).unlink(missing_ok=True)
-        return render_markdown(report), _highlights(report)
+                _delete_cached_upload(file_path)
+        return render_markdown(report), _highlights(report), None
 
     return handle
+
+
+def _delete_cached_upload(file_path: str) -> None:
+    """Borra la copia del archivo subido para no dejar documentos privados en disco.
+
+    `file_path` es siempre la copia en la caché de Gradio (Gradio rechaza rutas
+    del cliente fuera de sus carpetas permitidas), nunca el original del usuario.
+    Un fallo al borrar no debe ocultar el resultado: el barrido periódico de
+    DELETE_CACHE lo eliminará más tarde.
+    """
+    try:
+        Path(file_path).unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 def _highlights(report: Report) -> list[Highlight]:
@@ -108,7 +127,7 @@ def build_app(pipeline: DetectionPipeline) -> gr.Blocks:
         analyze_button.click(
             make_handler(pipeline),
             inputs=[file_input, text_input],
-            outputs=[report_output, highlights_output],
+            outputs=[report_output, highlights_output, file_input],
         )
     return blocks
 

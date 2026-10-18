@@ -211,3 +211,15 @@ def test_main_uses_the_calibrated_threshold(monkeypatch):
     app.main([])
 
     assert built["threshold"] == 0.77
+
+
+def test_file_not_found_unrelated_to_the_upload_shows_the_real_error(tmp_path):
+    uploaded = tmp_path / "presente.txt"
+    uploaded.write_text("x", encoding="utf-8")
+
+    class BrokenModelPipeline(FakePipeline):
+        def analyze_file(self, path, on_progress=None):
+            raise FileNotFoundError("models/config.json is missing")
+
+    with pytest.raises(gr.Error, match="models/config.json is missing"):
+        app.make_handler(BrokenModelPipeline())(str(uploaded), "")

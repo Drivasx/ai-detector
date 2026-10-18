@@ -147,7 +147,9 @@ def test_saved_calibration_is_loaded_back(tmp_path):
     assert data["file_count"] == 1 and data["target_false_positive_rate"] == 0.0
 
 
-@pytest.mark.parametrize("content", [None, "not json", '{"threshold": 7}', '{"other": 1}'])
+@pytest.mark.parametrize(
+    "content", [None, "not json", '{"threshold": 7}', '{"other": 1}', '{"threshold": 0.3}', '{"threshold": 0.995}']
+)
 def test_missing_or_invalid_calibration_file_is_ignored(tmp_path, content):
     path = tmp_path / "calibration.json"
     if content is not None:
@@ -162,3 +164,14 @@ def test_resolve_threshold_prefers_calibration_and_falls_back_to_default(tmp_pat
 
     path.write_text('{"threshold": 0.73}', encoding="utf-8")
     assert resolve_threshold(path) == 0.73
+
+
+def test_document_rate_counts_documents_with_any_flagged_paragraph(tmp_path):
+    write(tmp_path, "a.txt", [0.1, 0.1, 0.1, 0.95])  # media baja, pero el informe diría "mixto"
+    write(tmp_path, "b.txt", [0.1, 0.2])
+    write(tmp_path, "c.txt", [0.2, 0.3])
+
+    result = calibrate(discover_texts(tmp_path), FakePipeline(), ReaderAgent(), target_fpr=0.15)
+
+    assert result.threshold < 0.95
+    assert result.document_false_positive_rate == pytest.approx(1 / 3)

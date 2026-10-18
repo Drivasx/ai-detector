@@ -63,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Threshold: {result.threshold:.3f} (default {config.DETECTION_THRESHOLD})")
     print(
         f"With this threshold, {result.chunk_false_positive_rate:.1%} of your paragraphs and "
-        f"{result.document_false_positive_rate:.1%} of your documents would be flagged as AI."
+        f"{result.document_false_positive_rate:.1%} of your documents would be flagged as AI or mixed."
     )
     if result.capped:
         print(

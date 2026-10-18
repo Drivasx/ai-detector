@@ -67,8 +67,11 @@ def make_handler(pipeline: DetectionPipeline) -> Callable[..., tuple[str, list[H
             else:
                 raise gr.Error("Upload a file or paste some text to analyze.")
         except FileNotFoundError as exc:
-            # Ruta de una subida anterior cuya copia ya se borró.
-            raise gr.Error("The uploaded file is no longer available; please upload it again.") from exc
+            # Solo es una subida caducada si falta justo el archivo subido; cualquier
+            # otro archivo ausente (p. ej. de un modelo) se muestra tal cual.
+            if file_path and not Path(file_path).exists():
+                raise gr.Error("The uploaded file is no longer available; please upload it again.") from exc
+            raise gr.Error(str(exc)) from exc
         except (ReaderError, ModelNotAvailableError) as exc:
             raise gr.Error(str(exc)) from exc
         finally:

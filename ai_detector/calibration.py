@@ -51,7 +51,8 @@ class CalibrationResult:
     target_false_positive_rate: float
     file_count: int
     chunk_count: int
-    # Proporciones de párrafos y documentos humanos que quedarían marcados como IA.
+    # Proporciones de párrafos humanos marcados y de documentos humanos con al
+    # menos un párrafo marcado (veredicto "IA" o "mixto").
     chunk_false_positive_rate: float
     document_false_positive_rate: float
     skipped: list[tuple[str, str]] = field(default_factory=list)
@@ -112,7 +113,11 @@ def calibrate(
 
     scores = [e.ai_probability for evaluations in documents for e in evaluations]
     choice = compute_threshold(scores, target_fpr)
-    flagged_documents = sum(_document_probability(evaluations) >= choice.threshold for evaluations in documents)
+    # Un documento cuenta como falso positivo si el informe lo marcaría como IA o
+    # como mixto, es decir, si al menos uno de sus párrafos alcanza el umbral.
+    flagged_documents = sum(
+        any(e.ai_probability >= choice.threshold for e in evaluations) for evaluations in documents
+    )
     return CalibrationResult(
         threshold=choice.threshold,
         capped=choice.capped,
@@ -125,14 +130,6 @@ def calibrate(
     )
 
 
-def _document_probability(evaluations: list[ChunkEvaluation]) -> float:
-    """Misma agregación que el agente reportero: media ponderada por palabras."""
-    words = sum(e.chunk.word_count for e in evaluations)
-    if not words:
-        return 0.5
-    return sum(e.ai_probability * e.chunk.word_count for e in evaluations) / words
-
-
 def save_calibration(result: CalibrationResult, path: str | Path = config.CALIBRATION_FILE) -> None:
     data = asdict(result)
     data["created_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -142,12 +139,16 @@ def save_calibration(result: CalibrationResult, path: str | Path = config.CALIBR
 
 
 def load_threshold(path: str | Path = config.CALIBRATION_FILE) -> float | None:
-    """Umbral calibrado, o None si el archivo no existe o no es válido."""
+    """Umbral calibrado, o None si el archivo no existe, no es válido o está fuera de [0,5, 0,99]."""
     try:
         threshold = json.loads(Path(path).read_text(encoding="utf-8"))["threshold"]
     except (OSError, ValueError, KeyError, TypeError):
         return None
-    if isinstance(threshold, bool) or not isinstance(threshold, (int, float)) or not 0.0 < threshold < 1.0:
+    # Solo valores que la propia calibración puede producir: un archivo editado a
+    # mano con un umbral más bajo añadiría falsos positivos sin avisar.
+    if isinstance(threshold, bool) or not isinstance(threshold, (int, float)):
+        return None
+    if not config.DETECTION_THRESHOLD <= threshold <= MAX_THRESHOLD:
         return None
     return float(threshold)
 

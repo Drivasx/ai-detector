@@ -155,3 +155,10 @@ def test_corrupt_pdf_raises_reader_error(reader, tmp_path):
 def test_reader_errors_share_a_common_base(reader):
     assert issubclass(UnsupportedFormatError, ReaderError)
     assert issubclass(EmptyDocumentError, ReaderError)
+
+
+def test_capitalised_word_after_a_line_break_hyphen_is_not_joined(reader, tmp_path):
+    path = tmp_path / "ciudades.txt"
+    path.write_text("Ruta Madrid-\nBarcelona.", encoding="utf-8")
+
+    assert reader.read(path) == "Ruta Madrid-\nBarcelona."

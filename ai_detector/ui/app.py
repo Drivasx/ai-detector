@@ -27,7 +27,8 @@ import gradio as gr  # noqa: E402
 
 from ai_detector.agents.reader import SUPPORTED_EXTENSIONS, ReaderError  # noqa: E402
 from ai_detector.agents.reporter import Report, ReporterAgent, render_markdown  # noqa: E402
-from ai_detector.calibration import resolve_threshold  # noqa: E402
+from ai_detector.agents.evaluator import EvaluatorAgent  # noqa: E402
+from ai_detector.calibration import resolve_settings  # noqa: E402
 from ai_detector.models import ModelNotAvailableError  # noqa: E402
 from ai_detector.pipeline import DetectionPipeline  # noqa: E402
 
@@ -141,8 +142,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"port on 127.0.0.1 (default {DEFAULT_PORT})")
     args = parser.parse_args(argv)
 
-    # Umbral calibrado con scripts/calibrate.py si existe; si no, el de config.
-    app = build_app(DetectionPipeline(reporter=ReporterAgent(threshold=resolve_threshold())))
+    # Umbral (y pesos/referencias si la calibración fue supervisada) de calibration.json.
+    settings = resolve_settings()
+    pipeline = DetectionPipeline(
+        evaluator=EvaluatorAgent(**settings.evaluator_kwargs), reporter=ReporterAgent(threshold=settings.threshold)
+    )
+    app = build_app(pipeline)
     # En Gradio 6 el tema se pasa a launch() (por eso requirements.txt exige gradio>=6.0);
     # es el que garantiza que el navegador no descarga fuentes de internet.
     app.queue().launch(server_name=SERVER_NAME, server_port=args.port, share=False, theme=THEME)

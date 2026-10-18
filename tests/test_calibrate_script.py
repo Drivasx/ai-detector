@@ -61,3 +61,28 @@ def test_invalid_target_fpr_is_rejected(tmp_path, value):
         script.main([str(tmp_path), "--target-fpr", value])
 
     assert exit_info.value.code == 2
+
+
+def test_ai_folder_runs_supervised_calibration_and_reports_detection(tmp_path, capsys, monkeypatch):
+    from tests.test_supervised_calibration import FakeAnalyzingPipeline
+    from tests.test_supervised_calibration import write as write_pairs
+
+    monkeypatch.setattr(script, "DetectionPipeline", FakeAnalyzingPipeline)
+    write_pairs(tmp_path / "human", "a.txt", [(150, 3.7), (110, 3.5)])
+    write_pairs(tmp_path / "ai", "x.txt", [(20, 2.5), (35, 2.7)])
+    output = tmp_path / "c.json"
+
+    code = script.main([str(tmp_path / "human"), "--ai-folder", str(tmp_path / "ai"), "--output", str(output)])
+
+    assert code == 0
+    printed = capsys.readouterr().out
+    assert "100.0% of the AI paragraphs" in printed
+    assert "Weights:" in printed
+    assert json.loads(output.read_text(encoding="utf-8"))["weights"]["perplexity"] == pytest.approx(1.0)
+
+
+def test_missing_ai_folder_exits_with_error(tmp_path, capsys):
+    write(tmp_path, "a.txt", [0.6])
+
+    assert script.main([str(tmp_path), "--ai-folder", str(tmp_path / "nope"), "--output", str(tmp_path / "c.json")]) == 1
+    assert "not a folder" in capsys.readouterr().err

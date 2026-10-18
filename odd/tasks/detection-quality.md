@@ -13,8 +13,8 @@ Objective: AI-generated Spanish text must score clearly above the threshold with
 
 | ID | Specs | Route | Status | Evidence |
 |----|-------|-------|--------|----------|
-| T1 | S1, S2 | inline | done | 181 passed |
-| T2 | S1, S3 | inline | pending | |
+| T1 | S1, S2 | inline | done | 4e0a7dc; 181 passed |
+| T2 | S1, S3 | inline | done | 192 passed |
 
 Route evidence: sequential, dependent units (T2 builds on T1 defaults); no Writer trigger.
 
@@ -23,3 +23,4 @@ Route evidence: sequential, dependent units (T2 builds on T1 defaults); no Write
 - **L1 (2026-10-17, user verbatim):** "ya hice merge del #13, y ya estoy probando el sistema. Probe pasandole un texto de 100 palabras generado por una IA y me dio una probabilidad de 41% generado por IA"
 - **L2 diagnosis (reproduced):** six AI-written ~100-word Spanish samples scored 0.29-0.66 (3/6 >= 0.5); 144 human GNOME help paragraphs: median 0.26, FP@0.5 2.8%. Perplexity separates (human median 144, p25 95; AI 17-69) but the reference 60 -> 15 was a guess from two samples; burstiness separates (human median 3.63; AI 2.57-3.08) but reference 3.2 too low; classifier near-constant (raw ~0.999 for both); linguistic weak (AI 0.27-0.44 vs human median 0.32). Simulation with S2 values: AI 0.43-0.81 (4/6), human median 0.18, FP@0.5 5.6%; formal AI texts (perplexity 59-69) still missed. Caveat: small, unrepresentative samples (one model family; translated technical help) -> overfitting risk, hence S3.
 - **L3 (user choice verbatim):** "Ambas (Recommended)".
+- **L4 (2026-10-18) user: "Ya se reinicio mi uso, puedes seguir con la T2".** T2 done: `fit_parameters` (class medians for perplexity/burstiness references, AUC-based weights, fallback to defaults with a warning when classes are inverted or nothing separates), `calibrate(..., ai_paths=)`, `calibration.json` stores weights/references/AUC/AI detection rate, `load_calibration`/`resolve_settings` validate them (invalid -> only threshold kept), UI builds the evaluator from them, `scripts/calibrate.py --ai-folder`. RED -> GREEN; 192 passed. Real offline run (15 GNOME human texts, 6 AI samples): threshold 0.610, 4.9% human paragraphs / 40% human documents flagged (documents have ~10 paragraphs, so a 5% paragraph rate flags many documents as "mixed"), 66.7% AI paragraphs detected; AUC perplexity 0.97, classifier 0.87, linguistic 0.69. Only 6 AI paragraphs: not reliable, the script says so. T1 native review declined by the user ("Omitir esta vez").

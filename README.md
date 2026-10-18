@@ -60,6 +60,19 @@ python scripts/calibrate.py ~/my-old-texts             # .txt, .pdf, .docx
 python scripts/calibrate.py ~/my-old-texts --recursive --target-fpr 0.02
 ```
 
+For a much better fit, also give it AI-generated texts on similar topics
+(for example, ask an online assistant to write about the same subjects as your
+own texts; 20+ paragraphs recommended):
+
+```bash
+python scripts/calibrate.py ~/my-old-texts --ai-folder ~/ai-texts
+```
+
+With `--ai-folder` the calibration is supervised: it also fits the perplexity
+references (median of each class) and the voting weights (by how well each
+signal separates your texts from the AI ones, AUC) and reports the share of AI
+paragraphs detected.
+
 The script analyzes every paragraph offline and picks the lowest threshold that
 flags at most `--target-fpr` (default 5%) of your paragraphs. The threshold is
 never lowered below the default (0.5) and is capped at 0.99, with a warning when

@@ -26,8 +26,8 @@ Objective: local, CPU-only AI-text detector built as an agent pipeline with a Gr
 |----|-------|-------|--------|----------|
 | T1 | S2, S11 | inline | done | 7e4cab5 |
 | T2 | S3, S1, S11 | inline | done | 09aeeaf; RED (ImportError) -> GREEN 18 passed |
-| T3 | S4 | inline | pending — waits for user OK (S12) | |
-| T4 | S5, S1, S8 | inline | pending | |
+| T3 | S4 | inline | done | d19bbcd; RED (ImportError) -> GREEN 39 passed |
+| T4 | S5, S1, S8 | inline | pending — waits for user OK (S12) | |
 | T5 | S6 | inline | pending | |
 | T6 | S7 | inline | pending | |
 | T7 | S9 | inline | pending | |
@@ -42,3 +42,4 @@ Route evidence: no Writer trigger (agents are sequential by S12, not parallel un
 - **L2 decisions:** identifiers, messages and docs in English; comments and docstrings in Spanish (S11). Only Python 3.14 is available on the machine; torch/transformers installation on 3.14 is not yet verified (checked in T4). Install torch from the CPU wheel index to avoid CUDA builds.
 - **L3 open question for T4:** xlm-roberta-base is a masked LM, so it yields pseudo-perplexity (one forward pass per masked token, slow on CPU); a small causal LM may be cheaper and more faithful. Decide with the user before T4.
 - **L4 (2026-10-17) T1+T2 done.** Scaffold 7e4cab5; Reader 09aeeaf. RED: collection ImportError; GREEN: `pytest` 18 passed. Smoke test on a real PDF works (pypdf may insert kerning spaces, e.g. "T est", a known extraction limitation). Native assess (base ae1976c, committed-only): risk medium, review_due false, reason under_budget — slice stays open. Next: T3 Segmenter after user OK (S12).
+- **L5 (2026-10-17) user: "sí, seguí con el Segmenter".** T3 done in d19bbcd: `ai_detector/sentences.py` (rule-based Spanish sentence splitter, reused later by the linguistic analyzer) and `SegmenterAgent` (paragraphs, merge below `SEGMENT_MIN_WORDS`=40, balanced split above `SEGMENT_MAX_WORDS`=300 at sentence boundaries, no words lost). RED: collection ImportError; GREEN: 39 passed. Reader->Segmenter smoke test OK. Assess (base ae1976c): medium, review_due false, under_budget; branch at ~934 changed lines, so the PR chain strategy (stacked-to-main / feature-branch-chain) must be decided before the T4 commit. Next: T4 Analyzer after user OK; settle L3 first.

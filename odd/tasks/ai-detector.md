@@ -24,8 +24,8 @@ Objective: local, CPU-only AI-text detector built as an agent pipeline with a Gr
 
 | ID | Specs | Route | Status | Evidence |
 |----|-------|-------|--------|----------|
-| T1 | S2, S11 | inline | done | commit (scaffold) |
-| T2 | S3, S1, S11 | inline | done | RED/GREEN pytest; commit (reader) |
+| T1 | S2, S11 | inline | done | 7e4cab5 |
+| T2 | S3, S1, S11 | inline | done | 09aeeaf; RED (ImportError) -> GREEN 18 passed |
 | T3 | S4 | inline | pending — waits for user OK (S12) | |
 | T4 | S5, S1, S8 | inline | pending | |
 | T5 | S6 | inline | pending | |
@@ -41,3 +41,4 @@ Route evidence: no Writer trigger (agents are sequential by S12, not parallel un
 - **L1 (2026-10-17, user request verbatim):** "sí, inicializá el repo git" + pasted prompt: "You are an expert Python developer and NLP engineer. Help me build a local AI-text detector application that runs entirely offline on a CPU-only machine (Intel Core i5 7200U, 16 GB DDR3 RAM, no dedicated GPU). The tool must analyze texts written primarily in Spanish and must never send any text to external services or APIs. [...] Start by scaffolding the full project structure with folders, empty modules, and a requirements.txt. Then implement one agent at a time, starting with the Reader Agent. Ask me before moving to the next agent." (full requirement fragments quoted in S1–S12).
 - **L2 decisions:** identifiers, messages and docs in English; comments and docstrings in Spanish (S11). Only Python 3.14 is available on the machine; torch/transformers installation on 3.14 is not yet verified (checked in T4). Install torch from the CPU wheel index to avoid CUDA builds.
 - **L3 open question for T4:** xlm-roberta-base is a masked LM, so it yields pseudo-perplexity (one forward pass per masked token, slow on CPU); a small causal LM may be cheaper and more faithful. Decide with the user before T4.
+- **L4 (2026-10-17) T1+T2 done.** Scaffold 7e4cab5; Reader 09aeeaf. RED: collection ImportError; GREEN: `pytest` 18 passed. Smoke test on a real PDF works (pypdf may insert kerning spaces, e.g. "T est", a known extraction limitation). Native assess (base ae1976c, committed-only): risk medium, review_due false, reason under_budget — slice stays open. Next: T3 Segmenter after user OK (S12).

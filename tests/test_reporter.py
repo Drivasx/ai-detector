@@ -177,3 +177,13 @@ def test_confidence_boundaries_are_inclusive_despite_float_rounding():
 
     assert agent.build([evaluation(0.6)]).confidence == "medium"
     assert agent.build([evaluation(0.75)]).confidence == "high"
+
+
+def test_bare_urls_in_document_text_are_not_autolinkable(reporter):
+    text = "Visitá https://example.com/a.png o www.example.com o HTTP://EXAMPLE.COM para más datos. " * 5
+
+    markdown = render_markdown(reporter.build([evaluation(0.99, text=text)]))
+
+    assert "Paragraph 1" in markdown
+    for raw in ("https://", "HTTP://", "www."):
+        assert raw not in markdown

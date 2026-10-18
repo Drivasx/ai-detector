@@ -35,6 +35,8 @@ _EXCERPT_CHARS = 280
 # HTML. `_escape` además lo deja en una sola línea y neutraliza los marcadores de
 # bloque al inicio (listas, reglas), porque tras "> " también se interpretan.
 _MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()!|~#])")
+# Inicio de URL sin formato: un renderizador GFM la convertiría en enlace automático.
+_BARE_URL_START = re.compile(r"(?i)\b(https?|ftp)(:)|\b(www)(\.)")
 # Marcador de bloque al inicio del texto: "-", "+", "=" o una lista numerada ("1.", "2)").
 _LEADING_BLOCK_MARKER = re.compile(r"^(?:[-+=]|\d+(?=[.)]))")
 
@@ -214,6 +216,8 @@ def _escape(text: str) -> str:
     # Primero las entidades HTML, que se muestran literalmente; después Markdown.
     text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     text = _MARKDOWN_SPECIAL.sub(r"\\\1", text)
+    # "https\://" y "www\." se ven igual, pero ya no se reconocen como URL.
+    text = _BARE_URL_START.sub(lambda m: (m.group(1) or m.group(3)) + "\\" + (m.group(2) or m.group(4)), text)
     return _LEADING_BLOCK_MARKER.sub(_escape_marker, text, count=1)
 
 

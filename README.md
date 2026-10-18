@@ -35,5 +35,5 @@ pytest
 ## Status
 
 - [x] Project scaffold
-- [ ] Reader Agent
+- [x] Reader Agent
 - [ ] Segmenter, Analyzer, Evaluator, Reporter, UI, calibration

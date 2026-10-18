@@ -27,12 +27,14 @@ Objective: local, CPU-only AI-text detector built as an agent pipeline with a Gr
 | T1 | S2, S11 | inline | done | 7e4cab5 |
 | T2 | S3, S1, S11 | inline | done | 09aeeaf; RED (ImportError) -> GREEN 18 passed |
 | T3 | S4 | inline | done | d19bbcd; RED (ImportError) -> GREEN 39 passed |
-| T4 | S5, S1, S8 | inline | pending — waits for user OK (S12) | |
-| T5 | S6 | inline | pending | |
+| T4 | S5, S1, S8 | inline | done | 8bb39de (linguistic), 26a8e2a (model cache/offline), 68cf28e (perplexity, classifier, agent); 67 passed incl. 7 integration |
+| T5 | S6 | inline | pending — waits for user OK (S12) | |
 | T6 | S7 | inline | pending | |
 | T7 | S9 | inline | pending | |
 | T8 | S10 | inline | pending | |
-| T9 | S8 | inline | pending | |
+| T9 | S8 | inline | core done in 26a8e2a (download script, offline default); UI/first-run wiring pending | |
+
+Delivery: chain strategy `stacked-to-main` (user choice). Slices: (1) 7e4cab5 scaffold; (2) 09aeeaf reader; (3) d19bbcd segmenter; (4) 8bb39de linguistic; (5) 26a8e2a model cache; (6) 68cf28e analyzer models + agent.
 
 Route evidence: no Writer trigger (agents are sequential by S12, not parallel units); work stays inline.
 
@@ -43,3 +45,8 @@ Route evidence: no Writer trigger (agents are sequential by S12, not parallel un
 - **L3 open question for T4:** xlm-roberta-base is a masked LM, so it yields pseudo-perplexity (one forward pass per masked token, slow on CPU); a small causal LM may be cheaper and more faithful. Decide with the user before T4.
 - **L4 (2026-10-17) T1+T2 done.** Scaffold 7e4cab5; Reader 09aeeaf. RED: collection ImportError; GREEN: `pytest` 18 passed. Smoke test on a real PDF works (pypdf may insert kerning spaces, e.g. "T est", a known extraction limitation). Native assess (base ae1976c, committed-only): risk medium, review_due false, reason under_budget — slice stays open. Next: T3 Segmenter after user OK (S12).
 - **L5 (2026-10-17) user: "sí, seguí con el Segmenter".** T3 done in d19bbcd: `ai_detector/sentences.py` (rule-based Spanish sentence splitter, reused later by the linguistic analyzer) and `SegmenterAgent` (paragraphs, merge below `SEGMENT_MIN_WORDS`=40, balanced split above `SEGMENT_MAX_WORDS`=300 at sentence boundaries, no words lost). RED: collection ImportError; GREEN: 39 passed. Reader->Segmenter smoke test OK. Assess (base ae1976c): medium, review_due false, under_budget; branch at ~934 changed lines, so the PR chain strategy (stacked-to-main / feature-branch-chain) must be decided before the T4 commit. Next: T4 Analyzer after user OK; settle L3 first.
+- **L6 (2026-10-17) user: "si sigue".** Decisions for T4 (via question UI, verified against the Hugging Face API):
+  - Perplexity model: "DeepESP/gpt2-spanish (Recommended)" — causal GPT-2 small in Spanish, 261 MB weights, MIT. Resolves L3 (xlm-roberta-base is 1.1 GB fp32 and only gives pseudo-perplexity).
+  - Classifier: "pandrei7, cabeza propia (Recommended)" — pandrei7/autextification-upb-mtl (xlm-roberta-base encoder + 64-unit MTL head, trained on ~32k Spanish docs, macro F1 65.01 Spanish). Head re-implemented locally and weights loaded from safetensors: no `trust_remote_code`. Its own threshold is 0.9919 on `bot_prob` (skewed scores; handle in T5/T8).
+- **L7 (2026-10-17) T4.** User chose PR strategy "Stacked a main (Recommended)". Evidence: torch 2.14.1+cpu and transformers 5.20.1 install on Python 3.14 (resolves L2 risk); models downloaded (1.4 GB in `models/`). Linguistic RED (ImportError) -> GREEN; overlap bug found ("desempeña un papel fundamental" counted twice) -> RED -> fixed. `tests/test_models.py` written after code (no RED); mutation check: removing both offline env vars fails the test (only one is not enough: huggingface_hub also honours TRANSFORMERS_OFFLINE). Found and fixed: (a) AutoTokenizer read the classifier's `auto_map` and prompted to run remote code -> concrete XLMRobertaTokenizerFast; (b) DeepESP weights are float16 -> 13.7 s/chunk on CPU; forced float32 -> ~0.5 s/chunk (RED by mutation: float16 != float32). Offline probe under `unshare -rn` (network unreachable) analyzes successfully. Signals on two sample texts (human vs AI-like): perplexity 42.4 vs 17.0, burstiness 3.14 vs 2.32, linguistic 0.00 vs 0.84, classifier 0.9980 vs 0.9990 (classifier barely separates; scores skewed near its 0.9919 threshold -> T5 must rescale it). Harmless load notice: GPT-2 `attn.masked_bias` UNEXPECTED (legacy buffer).
+- **L8 (2026-10-17) independent verifier (item 2) on 26a8e2a + 68cf28e: PASS** on offline guarantee (probes under `unshare -rn` and a socket guard: zero network attempts, even with `HF_HUB_OFFLINE=0` exported, thanks to `local_files_only=True`), no remote code (no `.py` cached, no `transformers_modules` loaded), pinned revisions (only the exact shas resolve), and 67 passed. Advisories applied: `local_files_only=True` on the encoder config load; test count corrected. Advisories kept: `setdefault` does not override a user-exported `HF_HUB_OFFLINE=0` (no egress anyway); `MODELS_DIR` read once at import.

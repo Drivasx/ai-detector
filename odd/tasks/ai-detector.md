@@ -27,14 +27,14 @@ Objective: local, CPU-only AI-text detector built as an agent pipeline with a Gr
 | T1 | S2, S11 | inline | done | 7e4cab5 |
 | T2 | S3, S1, S11 | inline | done | 09aeeaf; RED (ImportError) -> GREEN 18 passed |
 | T3 | S4 | inline | done | d19bbcd; RED (ImportError) -> GREEN 39 passed |
-| T4 | S5, S1, S8 | inline | done | 8bb39de (linguistic), 26a8e2a (model cache/offline), C3 (perplexity, classifier, agent); 66 passed incl. 6 integration |
+| T4 | S5, S1, S8 | inline | done | 8bb39de (linguistic), 26a8e2a (model cache/offline), 68cf28e (perplexity, classifier, agent); 66 passed incl. 6 integration |
 | T5 | S6 | inline | pending — waits for user OK (S12) | |
 | T6 | S7 | inline | pending | |
 | T7 | S9 | inline | pending | |
 | T8 | S10 | inline | pending | |
 | T9 | S8 | inline | core done in 26a8e2a (download script, offline default); UI/first-run wiring pending | |
 
-Delivery: chain strategy `stacked-to-main` (user choice). Slices: (1) 7e4cab5 scaffold; (2) 09aeeaf reader; (3) d19bbcd segmenter; (4) 8bb39de linguistic; (5) 26a8e2a model cache; (6) C3 analyzer models + agent.
+Delivery: chain strategy `stacked-to-main` (user choice). Slices: (1) 7e4cab5 scaffold; (2) 09aeeaf reader; (3) d19bbcd segmenter; (4) 8bb39de linguistic; (5) 26a8e2a model cache; (6) 68cf28e analyzer models + agent.
 
 Route evidence: no Writer trigger (agents are sequential by S12, not parallel units); work stays inline.
 

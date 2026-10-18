@@ -14,14 +14,20 @@ Garantías de funcionamiento offline de la interfaz:
 from __future__ import annotations
 
 import argparse
+import os
 from typing import Callable
 
-import gradio as gr
+# Gradio lee estas variables al lanzar y anularían server_name/share: se eliminan
+# para que la interfaz escuche siempre solo en 127.0.0.1 y nunca se publique.
+for _variable in ("GRADIO_SERVER_NAME", "GRADIO_SHARE"):
+    os.environ.pop(_variable, None)
 
-from ai_detector.agents.reader import SUPPORTED_EXTENSIONS, ReaderError
-from ai_detector.agents.reporter import Report, render_markdown
-from ai_detector.models import ModelNotAvailableError
-from ai_detector.pipeline import DetectionPipeline
+import gradio as gr  # noqa: E402
+
+from ai_detector.agents.reader import SUPPORTED_EXTENSIONS, ReaderError  # noqa: E402
+from ai_detector.agents.reporter import Report, render_markdown  # noqa: E402
+from ai_detector.models import ModelNotAvailableError  # noqa: E402
+from ai_detector.pipeline import DetectionPipeline  # noqa: E402
 
 SERVER_NAME = "127.0.0.1"
 DEFAULT_PORT = 7860

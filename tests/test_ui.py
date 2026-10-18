@@ -108,3 +108,17 @@ def test_theme_uses_only_local_fonts():
 
 def test_server_listens_only_on_localhost():
     assert app.SERVER_NAME == "127.0.0.1"
+
+
+def test_user_exported_gradio_overrides_cannot_reenable_telemetry_or_exposure():
+    env = dict(os.environ, GRADIO_ANALYTICS_ENABLED="True", GRADIO_SERVER_NAME="0.0.0.0", GRADIO_SHARE="True")
+    code = (
+        "import os, ai_detector.ui.app as app; "
+        "print(os.environ['GRADIO_ANALYTICS_ENABLED'], os.environ.get('GRADIO_SERVER_NAME'), os.environ.get('GRADIO_SHARE'))"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", code], env=env, cwd=config.PROJECT_ROOT, capture_output=True, text=True, check=True
+    )
+
+    assert result.stdout.strip() == "False None None"

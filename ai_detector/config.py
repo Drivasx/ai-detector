@@ -81,3 +81,27 @@ CLASSIFIER_ENCODER_CONFIG = ModelSpec(
 
 ALL_MODELS = (PERPLEXITY_MODEL, CLASSIFIER_MODEL, CLASSIFIER_ENCODER_CONFIG)
 
+# --- Evaluación (votación ponderada) -----------------------------------------
+
+# Peso de cada componente en el voto. El clasificador pesa menos porque es la
+# señal más débil en español (macro F1 de 65 en AuTexTification y probabilidades
+# casi idénticas para texto humano y de IA en las pruebas). La perplejidad y los
+# rasgos lingüísticos separaron con claridad los textos de prueba.
+VOTING_WEIGHTS = {
+    "perplexity": 0.40,
+    "classifier": 0.25,
+    "linguistic": 0.35,
+}
+
+# Referencias de la perplejidad de DeepESP/gpt2-spanish: (valor_humano, valor_ia).
+# La perplejidad se compara en escala logarítmica. Valores heurísticos iniciales
+# (texto humano de prueba ~42, texto de IA ~17); la calibración los ajusta.
+PERPLEXITY_REFERENCES = {
+    "perplexity": (60.0, 15.0),
+    "burstiness": (3.2, 2.2),
+    # Parte de la puntuación de perplejidad que aporta la burstiness.
+    "burstiness_weight": 0.3,
+}
+
+# Temperatura al reescalar el clasificador: >1 suaviza sus probabilidades extremas.
+CLASSIFIER_TEMPERATURE = 2.0

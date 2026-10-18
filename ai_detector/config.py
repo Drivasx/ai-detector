@@ -67,6 +67,11 @@ CLASSIFIER_MODEL = ModelSpec(
     files=("config.json", "model.safetensors", "sentencepiece.bpe.model", "tokenizer.json", "tokenizer_config.json", "special_tokens_map.json"),
 )
 
+# Umbral de decisión que publicaron los autores del clasificador (campo "threshold"
+# de su config.json en la revisión fijada). Sus probabilidades están muy sesgadas
+# hacia 1, así que el evaluador las reescala alrededor de este valor.
+CLASSIFIER_THRESHOLD = 0.9919
+
 # Solo la configuración del codificador que usa el clasificador (sin pesos).
 CLASSIFIER_ENCODER_CONFIG = ModelSpec(
     repo_id="FacebookAI/xlm-roberta-base",
@@ -75,3 +80,4 @@ CLASSIFIER_ENCODER_CONFIG = ModelSpec(
 )
 
 ALL_MODELS = (PERPLEXITY_MODEL, CLASSIFIER_MODEL, CLASSIFIER_ENCODER_CONFIG)
+

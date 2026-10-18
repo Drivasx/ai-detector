@@ -3,6 +3,7 @@
 Se omiten si los modelos no se han descargado (`python scripts/download_models.py`).
 """
 
+import json
 import os
 
 import pytest
@@ -62,7 +63,12 @@ def test_classifier_loads_published_weights_and_returns_a_probability():
     probability = classifier.predict(FLUENT)
 
     assert 0.0 <= probability <= 1.0
-    assert classifier.threshold == pytest.approx(0.9919)
+
+
+def test_configured_classifier_threshold_matches_the_published_model():
+    settings = json.loads((local_model_path(config.CLASSIFIER_MODEL) / "config.json").read_text(encoding="utf-8"))
+
+    assert config.CLASSIFIER_THRESHOLD == settings["threshold"]
 
 
 def test_classifier_cache_contains_no_remote_code():

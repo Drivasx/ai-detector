@@ -55,7 +55,6 @@ class AIClassifier:
         self._encoder_spec = encoder_spec
         self._tokenizer = None
         self._model = None
-        self.threshold: float | None = None
 
     def predict(self, text: str) -> float:
         tokenizer, model = self._load()
@@ -73,15 +72,13 @@ class AIClassifier:
             settings = json.loads((path / "config.json").read_text(encoding="utf-8"))
             model = AutextificationModel(encoder_config, hidden_nodes=settings["hidden_nodes"])
             model.load_state_dict(_compatible_state_dict(load_file(path / "model.safetensors")), strict=True)
-            self._model = model.eval()
             # Clase concreta en lugar de AutoTokenizer: este leería el `auto_map` del
             # config.json y ofrecería ejecutar el código remoto del repositorio.
-            self._tokenizer = XLMRobertaTokenizerFast.from_pretrained(path, local_files_only=True)
-            # Umbral que usaron los autores para su predicción binaria (sus probabilidades
-            # están muy sesgadas hacia 1); se expone como referencia para el evaluador.
-            self.threshold = settings.get("threshold")
+            tokenizer = XLMRobertaTokenizerFast.from_pretrained(path, local_files_only=True)
+            # Se asignan juntos al final: si algo falla, el siguiente uso reintenta
+            # la carga completa en lugar de quedar con un estado a medias.
+            self._tokenizer, self._model = tokenizer, model.eval()
         return self._tokenizer, self._model
-
 
 def _compatible_state_dict(state: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
     """Quita los buffers `position_ids` que guardaban versiones antiguas de transformers."""

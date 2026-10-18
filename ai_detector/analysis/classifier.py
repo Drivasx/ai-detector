@@ -67,7 +67,9 @@ class AIClassifier:
     def _load(self):
         if self._model is None:
             path = local_model_path(self._spec)
-            encoder_config = XLMRobertaConfig.from_pretrained(local_model_path(self._encoder_spec))
+            encoder_config = XLMRobertaConfig.from_pretrained(
+                local_model_path(self._encoder_spec), local_files_only=True
+            )
             settings = json.loads((path / "config.json").read_text(encoding="utf-8"))
             model = AutextificationModel(encoder_config, hidden_nodes=settings["hidden_nodes"])
             model.load_state_dict(_compatible_state_dict(load_file(path / "model.safetensors")), strict=True)

@@ -8,6 +8,7 @@ from ai_detector.analysis.perplexity import PerplexityResult
 
 HUMAN_PPL, AI_PPL = 60.0, 15.0
 HUMAN_BURST, AI_BURST = 3.2, 2.2
+HUMAN_BINOCULARS, AI_BINOCULARS = 1.0, 0.8
 THRESHOLD = 0.9
 
 
@@ -35,6 +36,7 @@ def analysis(
     index: int = 0,
     text: str | None = None,
     connector_hits: tuple[str, ...] = (),
+    binoculars: float | None = None,
 ) -> ChunkAnalysis:
     chunk = Chunk(index=index, text=text if text is not None else " ".join(["palabra"] * words))
     result = PerplexityResult(perplexity=perplexity, burstiness=burstiness, token_count=0 if perplexity is None else 80)
@@ -43,6 +45,7 @@ def analysis(
         perplexity=result,
         classifier_probability=classifier,
         linguistic=linguistic(linguistic_score, connector_hits),
+        binoculars=binoculars,
     )
 
 

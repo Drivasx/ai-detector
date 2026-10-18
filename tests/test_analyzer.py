@@ -53,3 +53,33 @@ def test_no_chunks_returns_empty_list():
     agent = AnalyzerAgent(perplexity=FakePerplexity(), classifier=FakeClassifier(), linguistic=LinguisticAnalyzer())
 
     assert agent.analyze([]) == []
+
+
+class FakeBinoculars:
+    def __init__(self):
+        self.calls = []
+
+    def score(self, text):
+        self.calls.append(text)
+        return 0.8
+
+
+def test_binoculars_runs_once_per_chunk_when_given():
+    binoculars = FakeBinoculars()
+    agent = AnalyzerAgent(
+        perplexity=FakePerplexity(), classifier=FakeClassifier(), linguistic=LinguisticAnalyzer(), binoculars=binoculars
+    )
+    chunks = [Chunk(index=0, text="Primer bloque."), Chunk(index=1, text="Segundo bloque.")]
+
+    results = agent.analyze(chunks)
+
+    assert binoculars.calls == ["Primer bloque.", "Segundo bloque."]
+    assert [r.binoculars for r in results] == [0.8, 0.8]
+
+
+def test_without_binoculars_the_score_is_not_measured():
+    agent = AnalyzerAgent(perplexity=FakePerplexity(), classifier=FakeClassifier(), linguistic=LinguisticAnalyzer())
+
+    (result,) = agent.analyze([Chunk(index=0, text="Bloque.")])
+
+    assert result.binoculars is None

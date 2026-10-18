@@ -197,20 +197,23 @@ def test_failure_to_delete_the_cached_copy_does_not_hide_the_result(tmp_path, mo
     assert "Verdict" in markdown
 
 
-def test_main_uses_the_calibrated_threshold(monkeypatch):
-    built = {}
+def test_main_uses_the_calibrated_threshold_and_voting_parameters(monkeypatch):
+    from ai_detector.calibration import CalibrationSettings
 
-    def fake_pipeline(reporter=None, **kwargs):
-        built["threshold"] = reporter.threshold
+    built = {}
+    weights = {"perplexity": 0.5, "binoculars": 0.2, "classifier": 0.0, "linguistic": 0.3}
+
+    def fake_pipeline(reporter=None, evaluator=None, **kwargs):
+        built["threshold"], built["weights"] = reporter.threshold, evaluator.weights
         return FakePipeline()
 
     monkeypatch.setattr(app, "DetectionPipeline", fake_pipeline)
-    monkeypatch.setattr(app, "resolve_threshold", lambda: 0.77)
+    monkeypatch.setattr(app, "resolve_settings", lambda path=None: CalibrationSettings(0.77, {"weights": weights}))
     monkeypatch.setattr(gr.Blocks, "launch", lambda self, **kwargs: None)
 
     app.main([])
 
-    assert built["threshold"] == 0.77
+    assert built == {"threshold": 0.77, "weights": weights}
 
 
 def test_file_not_found_unrelated_to_the_upload_shows_the_real_error(tmp_path):
@@ -223,3 +226,15 @@ def test_file_not_found_unrelated_to_the_upload_shows_the_real_error(tmp_path):
 
     with pytest.raises(gr.Error, match="models/config.json is missing"):
         app.make_handler(BrokenModelPipeline())(str(uploaded), "")
+
+
+def test_main_warns_when_an_existing_calibration_is_ignored(tmp_path, monkeypatch, capsys):
+    stale = tmp_path / "calibration.json"
+    stale.write_text('{"threshold": 0.6}', encoding="utf-8")
+    monkeypatch.setattr(app.config, "CALIBRATION_FILE", stale)
+    monkeypatch.setattr(app, "DetectionPipeline", lambda **kwargs: FakePipeline())
+    monkeypatch.setattr(gr.Blocks, "launch", lambda self, **kwargs: None)
+
+    app.main([])
+
+    assert "run scripts/calibrate.py again" in capsys.readouterr().out

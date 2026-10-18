@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable
 
-from ai_detector.agents.analyzer import AnalyzerAgent
+from ai_detector.agents.analyzer import AnalyzerAgent, ChunkAnalysis
 from ai_detector.agents.evaluator import ChunkEvaluation, EvaluatorAgent
 from ai_detector.agents.reader import EmptyDocumentError, ReaderAgent, clean_text
 from ai_detector.agents.reporter import Report, ReporterAgent
@@ -52,10 +52,13 @@ class DetectionPipeline:
             raise EmptyDocumentError("The text is empty.")
         return self._report(cleaned, source_name=source_name, on_progress=on_progress)
 
+    def analyze_chunks(self, text: str, on_progress: ProgressCallback | None = None) -> list[ChunkAnalysis]:
+        """Señales en bruto de cada bloque (la calibración supervisada ajusta el voto sobre ellas)."""
+        return self._get_analyzer().analyze(self._segmenter.segment(text), on_progress=on_progress)
+
     def evaluate_text(self, text: str, on_progress: ProgressCallback | None = None) -> list[ChunkEvaluation]:
         """Evaluaciones por bloque sin construir el informe (lo usa la calibración)."""
-        chunks = self._segmenter.segment(text)
-        return self._evaluator.evaluate(self._get_analyzer().analyze(chunks, on_progress=on_progress))
+        return self._evaluator.evaluate(self.analyze_chunks(text, on_progress=on_progress))
 
     def _report(self, text: str, source_name: str | None, on_progress: ProgressCallback | None) -> Report:
         return self._reporter.build(self.evaluate_text(text, on_progress=on_progress), source_name=source_name)

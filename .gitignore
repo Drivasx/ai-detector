@@ -18,3 +18,6 @@ outputs/
 
 # Personal calibration (scripts/calibrate.py)
 calibration.json
+
+# Local gentle-ai skill registry (machine-specific, not project code)
+.atl/

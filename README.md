@@ -36,4 +36,5 @@ pytest
 
 - [x] Project scaffold
 - [x] Reader Agent
-- [ ] Segmenter, Analyzer, Evaluator, Reporter, UI, calibration
+- [x] Segmenter Agent
+- [ ] Analyzer, Evaluator, Reporter, UI, calibration
